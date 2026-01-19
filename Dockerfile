@@ -2,8 +2,9 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-# Instalar pnpm
-RUN npm install -g pnpm && npm cache clean --force
+# Instalar pnpm e curl para healthcheck
+RUN apk add --no-cache curl && \
+    npm install -g pnpm && npm cache clean --force
 
 # Copiar dependências
 COPY package.json pnpm-lock.yaml ./
@@ -26,7 +27,7 @@ EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3000/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+    CMD curl -f http://localhost:3000/health || exit 1
 
 # Iniciar aplicação
 CMD ["pnpm", "start"]

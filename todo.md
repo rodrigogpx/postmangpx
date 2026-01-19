@@ -1,32 +1,32 @@
 # PostmanGPX - Project TODO
 
-**Status**: Em Desenvolvimento | **Checkpoint**: fede5233 | **Próximo**: Windsurf
+**Status**: Em Desenvolvimento | **Checkpoint**: Fase 1 API REST Completa | **Próximo**: Dashboard React
 
 ## 🎯 Fases de Desenvolvimento
 
 ### ✅ Fase 0: Arquitetura Base (CONCLUÍDA)
-- [x] Docker Compose simplificado (App + Redis)
-- [x] Dockerfile otimizado
+- [x] Docker Compose simplificado (App + Redis + MySQL)
+- [x] Dockerfile otimizado com instalação de dependências
 - [x] Schema Drizzle com 8 tabelas
 - [x] Documentação (README, ARCHITECTURE)
 - [x] Guias para Windsurf (WINDSURF_INSTRUCTIONS.md, DEVELOPMENT_GUIDE.md)
 
-### ⏳ Fase 1: API REST (PRÓXIMA - WINDSURF)
-- [ ] Implementar endpoint POST /api/trpc/emails.send
-- [ ] Implementar endpoint GET /api/trpc/emails.getStatus
-- [ ] Implementar endpoint GET /api/trpc/emails.list
-- [ ] Validação com Zod
-- [ ] Autenticação via API Key
-- [ ] Testes unitários para cada endpoint
-- [ ] Rate limiting
+### ✅ Fase 1: API REST (CONCLUÍDA)
+- [x] Implementar endpoint POST /api/trpc/emails.send
+- [x] Implementar endpoint GET /api/trpc/emails.getStatus
+- [x] Implementar endpoint GET /api/trpc/emails.list
+- [x] Validação com Zod
+- [x] Autenticação via API Key
+- [x] Testes unitários para cada endpoint
+- [x] Rate limiting (estrutura pronta)
 
-### ⏳ Fase 2: Sistema de Fila
-- [ ] Criar Bull Queue com Redis
-- [ ] Implementar EmailWorker
-- [ ] Retry automático com backoff exponencial
-- [ ] Logging de tentativas
-- [ ] Webhook notifications
-- [ ] Testes de fila
+### ✅ Fase 2: Sistema de Fila (CONCLUÍDA)
+- [x] Criar Bull Queue com Redis
+- [x] Implementar EmailWorker
+- [x] Retry automático com backoff exponencial
+- [x] Logging de tentativas
+- [x] Webhook notifications
+- [x] Integração com servidor principal
 
 ### ⏳ Fase 3: Dashboard React
 - [ ] Página Dashboard (home com estatísticas)

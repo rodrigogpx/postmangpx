@@ -2,6 +2,30 @@ version: '3.8'
 
 services:
   # ============================================
+  # MySQL - Database
+  # ============================================
+  mysql:
+    image: mysql:8.0
+    container_name: postmangpx-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: postmangpx
+      MYSQL_USER: postmangpx
+      MYSQL_PASSWORD: postmangpx123
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - postmangpx-network
+    restart: unless-stopped
+
+  # ============================================
   # Redis - Message Queue & Cache
   # ============================================
   redis:
@@ -32,13 +56,15 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      DATABASE_URL: file:/app/data/postmangpx.db
+      DATABASE_URL: mysql://postmangpx:postmangpx123@mysql:3306/postmangpx
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET:-change_me_in_production}
-      API_KEY_SALT: ${API_KEY_SALT:-change_me_in_production}
+      JWT_SECRET: ${JWT_SECRET:-default_jwt_secret_change_in_production}
+      API_KEY_SALT: ${API_KEY_SALT:-default_salt_change_in_production}
     ports:
       - "3000:3000"
     depends_on:
+      mysql:
+        condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
@@ -55,6 +81,8 @@ services:
       - app_logs:/app/logs
 
 volumes:
+  mysql_data:
+    driver: local
   redis_data:
     driver: local
   app_data:
