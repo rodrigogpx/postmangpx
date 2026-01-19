@@ -1,87 +1,104 @@
-# PostmanGPX - Project TODO (Versão Simplificada)
+# PostmanGPX - Project TODO
 
-## Fase 1: Banco de Dados
-- [ ] Definir schema Drizzle (emails, templates, providers, api_keys, logs)
-- [ ] Criar migrações
-- [ ] Seed de dados iniciais
+**Status**: Em Desenvolvimento | **Checkpoint**: fede5233 | **Próximo**: Windsurf
 
-## Fase 2: API REST Básica
+## 🎯 Fases de Desenvolvimento
+
+### ✅ Fase 0: Arquitetura Base (CONCLUÍDA)
+- [x] Docker Compose simplificado (App + Redis)
+- [x] Dockerfile otimizado
+- [x] Schema Drizzle com 8 tabelas
+- [x] Documentação (README, ARCHITECTURE)
+- [x] Guias para Windsurf (WINDSURF_INSTRUCTIONS.md, DEVELOPMENT_GUIDE.md)
+
+### ⏳ Fase 1: API REST (PRÓXIMA - WINDSURF)
+- [ ] Implementar endpoint POST /api/trpc/emails.send
+- [ ] Implementar endpoint GET /api/trpc/emails.getStatus
+- [ ] Implementar endpoint GET /api/trpc/emails.list
+- [ ] Validação com Zod
 - [ ] Autenticação via API Key
-- [ ] Endpoint POST /api/v1/emails/send
-- [ ] Endpoint GET /api/v1/emails/:id
-- [ ] Endpoint GET /api/v1/emails (com filtros)
-- [ ] Validação de requisições
+- [ ] Testes unitários para cada endpoint
 - [ ] Rate limiting
 
-## Fase 3: Fila e Worker
-- [ ] Configurar Bull + Redis
-- [ ] Implementar worker de processamento
-- [ ] Retry automático com backoff
-- [ ] Logging de jobs
+### ⏳ Fase 2: Sistema de Fila
+- [ ] Criar Bull Queue com Redis
+- [ ] Implementar EmailWorker
+- [ ] Retry automático com backoff exponencial
+- [ ] Logging de tentativas
+- [ ] Webhook notifications
+- [ ] Testes de fila
 
-## Fase 4: Provedores SMTP
-- [ ] Suporte a Gmail
-- [ ] Suporte a SendGrid
-- [ ] Suporte a SMTP customizado
-- [ ] Seleção de provedor
-- [ ] Teste de conexão
+### ⏳ Fase 3: Dashboard React
+- [ ] Página Dashboard (home com estatísticas)
+- [ ] Página Emails (listagem com filtros)
+- [ ] Página Templates (CRUD)
+- [ ] Página Providers (configuração SMTP)
+- [ ] Página Logs (visualização detalhada)
+- [ ] Página Settings (configurações do usuário)
+- [ ] Gráficos e métricas em tempo real
 
-## Fase 5: Templates
-- [ ] Sistema de templates com variáveis
-- [ ] Renderização HTML
-- [ ] Renderização texto plano
+### ⏳ Fase 4: Provedores SMTP
+- [ ] Gmail Provider (Nodemailer)
+- [ ] SendGrid Provider
+- [ ] AWS SES Provider
+- [ ] SMTP Genérico Provider
+- [ ] Teste de conexão para cada provider
+- [ ] Seleção automática de provider
 
-## Fase 6: Dashboard - Home
-- [ ] Layout principal
-- [ ] Navegação
-- [ ] Autenticação
-- [ ] Resumo de estatísticas
-
-## Fase 7: Dashboard - E-mails
-- [ ] Listagem de e-mails
-- [ ] Filtros (status, data, destinatário)
-- [ ] Busca
-- [ ] Detalhes de e-mail
-- [ ] Paginação
-
-## Fase 8: Dashboard - Templates
-- [ ] Listagem de templates
-- [ ] Editor visual
-- [ ] Preview
-- [ ] Teste de template
-- [ ] CRUD completo
-
-## Fase 9: Dashboard - Provedores
-- [ ] Listagem de provedores
-- [ ] Formulário de configuração
-- [ ] Teste de conexão
-- [ ] Priorização
-
-## Fase 10: Dashboard - Logs
-- [ ] Visualização de logs
-- [ ] Filtros avançados
-- [ ] Busca
-- [ ] Export
-
-## Fase 11: Webhooks
-- [ ] Endpoint para registrar webhooks
-- [ ] Disparo de webhooks
-- [ ] Histórico de webhooks
-- [ ] Retry automático
-
-## Fase 12: Métricas
+### ⏳ Fase 5: Webhooks e Métricas
+- [ ] Sistema de Webhooks
+- [ ] Assinatura HMAC para segurança
+- [ ] Retry de webhooks falhados
+- [ ] Agregação de métricas por hora
 - [ ] Dashboard de estatísticas
-- [ ] Gráficos de volume
-- [ ] Taxa de sucesso
-- [ ] Latência média
+- [ ] Export de dados
 
-## Fase 13: Testes e Otimizações
-- [ ] Testes unitários
-- [ ] Testes de integração
+### ⏳ Fase 6: Otimizações e Deploy
 - [ ] Otimizações de performance
-- [ ] Documentação
+- [ ] Caching com Redis
+- [ ] Compressão de respostas
+- [ ] Testes de carga
+- [ ] Documentação de API
+- [ ] CI/CD pipeline
+- [ ] Deploy em produção
 
-## Fase 14: Deployment
-- [ ] Docker + Docker Compose
-- [ ] CI/CD básico
-- [ ] Documentação de deployment
+## 📋 Checklist Geral
+- [x] Repositório criado
+- [x] Schema do banco definido
+- [x] Docker Compose configurado
+- [ ] API REST implementada
+- [ ] Sistema de fila funcionando
+- [ ] Dashboard operacional
+- [ ] Provedores SMTP integrados
+- [ ] Webhooks funcionando
+- [ ] Testes completos
+- [ ] Documentação finalizada
+- [ ] Deploy em produção
+
+## 🚀 Como Continuar (Windsurf)
+
+1. Ler `WINDSURF_INSTRUCTIONS.md` para começar
+2. Ler `DEVELOPMENT_GUIDE.md` para entender a arquitetura
+3. Começar pela Fase 1: API REST
+4. Seguir os padrões de código definidos
+5. Escrever testes para cada feature
+6. Fazer commits pequenos e descritivos
+7. Atualizar este arquivo conforme progride
+
+## 📚 Documentação
+
+- `README.md` - Instruções de execução
+- `ARCHITECTURE.md` - Visão geral da arquitetura
+- `WINDSURF_INSTRUCTIONS.md` - Guia para Windsurf
+- `DEVELOPMENT_GUIDE.md` - Guia técnico detalhado
+- `docker-compose.yml` - Orquestração de containers
+- `Dockerfile` - Build da imagem
+- `.env.example` - Variáveis de ambiente
+
+## 🔗 Links Úteis
+
+- GitHub: https://github.com/rodrigogpx/postmangpx
+- tRPC Docs: https://trpc.io
+- Drizzle ORM: https://orm.drizzle.team
+- Bull Queue: https://github.com/OptimalBits/bull
+- Nodemailer: https://nodemailer.com
