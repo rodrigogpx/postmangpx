@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # ============================================
+  # Redis - Message Queue & Cache
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: postmangpx-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - postmangpx-network
+    restart: unless-stopped
+
+  # ============================================
+  # Node.js Application (API + Frontend)
+  # ============================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: postmangpx-app
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: file:/app/data/postmangpx.db
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-change_me_in_production}
+      API_KEY_SALT: ${API_KEY_SALT:-change_me_in_production}
+    ports:
+      - "3000:3000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - postmangpx-network
+    restart: unless-stopped
+    volumes:
+      - app_data:/app/data
+      - app_logs:/app/logs
+
+volumes:
+  redis_data:
+    driver: local
+  app_data:
+    driver: local
+  app_logs:
+    driver: local
+
+networks:
+  postmangpx-network:
+    driver: bridge
