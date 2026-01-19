@@ -49,6 +49,7 @@ services:
   # Node.js Application (API + Frontend)
   # ============================================
   app:
+    image: ghcr.io/rodrigogpx/postmangpx:latest
     build:
       context: .
       dockerfile: Dockerfile
