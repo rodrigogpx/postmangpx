@@ -380,7 +380,9 @@ def init_db():
             print('[Init] Usuário admin já existe')
 
 
+# Inicializar banco de dados ao importar o módulo (necessário para Gunicorn)
+init_db()
+
 if __name__ == '__main__':
-    init_db()
     port = int(os.environ.get('PORT', 3000))
     app.run(host='0.0.0.0', port=port, debug=os.environ.get('FLASK_DEBUG', 'false').lower() == 'true')
