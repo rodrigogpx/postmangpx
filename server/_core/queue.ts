@@ -33,20 +33,8 @@ export const emailQueue = new Bull<EmailJob>('email processing', {
 });
 
 // Configurar prioridades
-emailQueue.process('high', 5, async (job) => {
-  console.log(`[Queue] Processing high priority job: ${job.data.emailId}`);
-  // O processamento real será feito no worker
-});
-
-emailQueue.process('normal', 3, async (job) => {
-  console.log(`[Queue] Processing normal priority job: ${job.data.emailId}`);
-  // O processamento real será feito no worker
-});
-
-emailQueue.process('low', 1, async (job) => {
-  console.log(`[Queue] Processing low priority job: ${job.data.emailId}`);
-  // O processamento real será feito no worker
-});
+// Os handlers reais de processamento estão no server/workers/emailWorker.ts
+// Não definimos handlers aqui para evitar erro de "Cannot define the same handler twice"
 
 // Event listeners
 emailQueue.on('completed', (job, result) => {
