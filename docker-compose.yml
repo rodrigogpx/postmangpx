@@ -5,7 +5,8 @@ services:
   # PostmanGPX - Single Container (SQLite + In-Memory Queue)
   # ============================================
   app:
-    image: ghcr.io/rodrigogpx/postmangpx:latest
+    # Build local obrigatório para injetar variáveis VITE_ no frontend
+    # (imagens pré-construídas do GHCR não têm essas variáveis)
     container_name: postmangpx-app
     environment:
       NODE_ENV: production
