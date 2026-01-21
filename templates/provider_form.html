@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Novo Provedor - PostmanGPX{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-3xl font-bold">Novo Provedor SMTP</h1>
+    <p class="text-gray-400 mt-1">Configure um novo servidor de e-mail</p>
+</div>
+
+<div class="bg-gray-800 rounded-xl p-6 max-w-2xl">
+    <form method="POST" class="space-y-6">
+        <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Nome</label>
+            <input type="text" name="name" required
+                class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                placeholder="Ex: Gmail Principal">
+        </div>
+        
+        <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Tipo</label>
+            <select name="provider_type" required
+                class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white">
+                <option value="smtp">SMTP Genérico</option>
+                <option value="gmail">Gmail</option>
+                <option value="outlook">Outlook/Office 365</option>
+                <option value="sendgrid">SendGrid</option>
+                <option value="ses">Amazon SES</option>
+            </select>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">Host SMTP</label>
+                <input type="text" name="host"
+                    class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                    placeholder="smtp.gmail.com">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">Porta</label>
+                <input type="number" name="port" value="587"
+                    class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white">
+            </div>
+        </div>
+        
+        <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Usuário</label>
+            <input type="text" name="username"
+                class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                placeholder="seu-email@gmail.com">
+        </div>
+        
+        <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Senha / App Password</label>
+            <input type="password" name="password"
+                class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                placeholder="Senha de aplicativo">
+        </div>
+        
+        <div class="flex items-center">
+            <input type="checkbox" name="use_tls" id="use_tls" checked
+                class="w-4 h-4 bg-gray-700 border-gray-600 rounded">
+            <label for="use_tls" class="ml-2 text-sm text-gray-300">Usar TLS</label>
+        </div>
+        
+        <div class="flex gap-4 pt-4">
+            <button type="submit" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-semibold transition">
+                <i class="fas fa-save mr-2"></i>Salvar Provedor
+            </button>
+            <a href="{{ url_for('providers') }}" class="px-6 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg font-semibold transition">
+                Cancelar
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

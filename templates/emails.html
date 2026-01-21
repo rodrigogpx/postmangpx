@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}E-mails - PostmanGPX{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-3xl font-bold">E-mails</h1>
+    <p class="text-gray-400 mt-1">Histórico de e-mails enviados</p>
+</div>
+
+<!-- Emails List -->
+<div class="bg-gray-800 rounded-xl overflow-hidden">
+    {% if emails.items %}
+    <table class="w-full">
+        <thead>
+            <tr class="text-left text-gray-400 text-sm bg-gray-700/50">
+                <th class="px-6 py-4">Destinatário</th>
+                <th class="px-6 py-4">Assunto</th>
+                <th class="px-6 py-4">Status</th>
+                <th class="px-6 py-4">Data</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for email in emails.items %}
+            <tr class="border-t border-gray-700 hover:bg-gray-700/30">
+                <td class="px-6 py-4">
+                    <div class="font-medium">{{ email.to_address }}</div>
+                    {% if email.external_id %}
+                    <div class="text-xs text-gray-500">ID: {{ email.external_id }}</div>
+                    {% endif %}
+                </td>
+                <td class="px-6 py-4 text-gray-300">
+                    {{ email.subject[:60] }}{% if email.subject|length > 60 %}...{% endif %}
+                </td>
+                <td class="px-6 py-4">
+                    {% if email.status == 'sent' %}
+                    <span class="px-2 py-1 bg-green-900/50 text-green-300 rounded text-xs">
+                        <i class="fas fa-check mr-1"></i>Enviado
+                    </span>
+                    {% elif email.status == 'failed' %}
+                    <span class="px-2 py-1 bg-red-900/50 text-red-300 rounded text-xs" title="{{ email.failure_reason }}">
+                        <i class="fas fa-times mr-1"></i>Falhou
+                    </span>
+                    {% else %}
+                    <span class="px-2 py-1 bg-yellow-900/50 text-yellow-300 rounded text-xs">
+                        <i class="fas fa-clock mr-1"></i>Pendente
+                    </span>
+                    {% endif %}
+                </td>
+                <td class="px-6 py-4 text-gray-400 text-sm">
+                    {{ email.created_at.strftime('%d/%m/%Y %H:%M') }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <!-- Pagination -->
+    <div class="px-6 py-4 border-t border-gray-700 flex items-center justify-between">
+        <div class="text-sm text-gray-400">
+            Mostrando {{ emails.items|length }} de {{ emails.total }} e-mails
+        </div>
+        <div class="flex gap-2">
+            {% if emails.has_prev %}
+            <a href="{{ url_for('emails', page=emails.prev_num) }}" 
+               class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm">
+                <i class="fas fa-chevron-left mr-1"></i>Anterior
+            </a>
+            {% endif %}
+            {% if emails.has_next %}
+            <a href="{{ url_for('emails', page=emails.next_num) }}" 
+               class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm">
+                Próximo<i class="fas fa-chevron-right ml-1"></i>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="text-center py-12">
+        <i class="fas fa-envelope text-4xl text-gray-600 mb-4"></i>
+        <p class="text-gray-400">Nenhum e-mail enviado ainda.</p>
+        <p class="text-gray-500 text-sm mt-1">Use a API para enviar seu primeiro e-mail.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

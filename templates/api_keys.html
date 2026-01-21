@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}API Keys - PostmanGPX{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-8">
+    <div>
+        <h1 class="text-3xl font-bold">API Keys</h1>
+        <p class="text-gray-400 mt-1">Gerencie suas chaves de API para integração</p>
+    </div>
+    <form method="POST" action="{{ url_for('create_api_key') }}" class="flex gap-2">
+        <input type="text" name="name" placeholder="Nome da chave" 
+            class="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400">
+        <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-semibold transition">
+            <i class="fas fa-plus mr-2"></i>Nova API Key
+        </button>
+    </form>
+</div>
+
+<!-- API Keys List -->
+<div class="bg-gray-800 rounded-xl overflow-hidden">
+    {% if api_keys %}
+    <table class="w-full">
+        <thead>
+            <tr class="text-left text-gray-400 text-sm bg-gray-700/50">
+                <th class="px-6 py-4">Nome</th>
+                <th class="px-6 py-4">Chave</th>
+                <th class="px-6 py-4">Status</th>
+                <th class="px-6 py-4">Último Uso</th>
+                <th class="px-6 py-4">Criada em</th>
+                <th class="px-6 py-4">Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for key in api_keys %}
+            <tr class="border-t border-gray-700">
+                <td class="px-6 py-4 font-medium">{{ key.name }}</td>
+                <td class="px-6 py-4">
+                    <code class="bg-gray-700 px-2 py-1 rounded text-sm">{{ key.key_prefix }}</code>
+                </td>
+                <td class="px-6 py-4">
+                    {% if key.is_active %}
+                    <span class="px-2 py-1 bg-green-900/50 text-green-300 rounded text-xs">Ativa</span>
+                    {% else %}
+                    <span class="px-2 py-1 bg-red-900/50 text-red-300 rounded text-xs">Inativa</span>
+                    {% endif %}
+                </td>
+                <td class="px-6 py-4 text-gray-400 text-sm">
+                    {{ key.last_used_at.strftime('%d/%m/%Y %H:%M') if key.last_used_at else 'Nunca' }}
+                </td>
+                <td class="px-6 py-4 text-gray-400 text-sm">
+                    {{ key.created_at.strftime('%d/%m/%Y %H:%M') }}
+                </td>
+                <td class="px-6 py-4">
+                    <form method="POST" action="{{ url_for('delete_api_key', key_id=key.id) }}" 
+                          onsubmit="return confirm('Tem certeza que deseja excluir esta API Key?')">
+                        <button type="submit" class="text-red-400 hover:text-red-300">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="text-center py-12">
+        <i class="fas fa-key text-4xl text-gray-600 mb-4"></i>
+        <p class="text-gray-400">Nenhuma API Key criada ainda.</p>
+        <p class="text-gray-500 text-sm mt-1">Crie uma API Key para começar a enviar e-mails via API.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Usage Example -->
+<div class="bg-gray-800 rounded-xl p-6 mt-6">
+    <h3 class="text-lg font-semibold mb-4">
+        <i class="fas fa-code mr-2 text-indigo-400"></i>Exemplo de Uso
+    </h3>
+    <pre class="bg-gray-900 p-4 rounded-lg overflow-x-auto text-sm"><code class="text-green-400">curl -X POST http://seu-servidor:3000/api/v1/send \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: pmgpx_live_sua_chave_aqui" \
+  -d '{
+    "to": "destinatario@email.com",
+    "subject": "Teste de E-mail",
+    "html": "&lt;h1&gt;Olá!&lt;/h1&gt;&lt;p&gt;Este é um teste.&lt;/p&gt;"
+  }'</code></pre>
+</div>
+{% endblock %}

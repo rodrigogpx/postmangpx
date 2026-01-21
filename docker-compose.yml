@@ -2,29 +2,18 @@ version: '3.8'
 
 services:
   # ============================================
-  # PostmanGPX - Single Container (SQLite + In-Memory Queue)
+  # PostmanGPX - Python/Flask (Single Container)
   # ============================================
   app:
-    # Build local obrigatório para injetar variáveis VITE_ no frontend
-    # (imagens pré-construídas do GHCR não têm essas variáveis)
     container_name: postmangpx-app
-    environment:
-      NODE_ENV: production
-      PORT: 3000
-      # SQLite path inside container
-      DATABASE_URL: file:/app/data/postmangpx.db
-      JWT_SECRET: ${JWT_SECRET:-change_me_in_production}
-      API_KEY_SALT: ${API_KEY_SALT:-change_me_in_production}
-      # Manus OAuth
-      VITE_APP_ID: ${VITE_APP_ID}
-      VITE_OAUTH_PORTAL_URL: ${VITE_OAUTH_PORTAL_URL:-https://portal.manus.im}
-      OAUTH_SERVER_URL: ${OAUTH_SERVER_URL:-https://api.manus.im}
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        VITE_APP_ID: ${VITE_APP_ID}
-        VITE_OAUTH_PORTAL_URL: ${VITE_OAUTH_PORTAL_URL:-https://portal.manus.im}
+    environment:
+      PORT: 3000
+      SECRET_KEY: ${SECRET_KEY:-change_me_in_production_123456}
+      DATABASE_URL: sqlite:////app/data/postmangpx.db
+      FLASK_DEBUG: "false"
     ports:
       - "3000:3000"
     healthcheck:
@@ -32,20 +21,11 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
-    networks:
-      - postmangpx-network
+      start_period: 10s
     restart: unless-stopped
     volumes:
       - app_data:/app/data
-      - app_logs:/app/logs
 
 volumes:
   app_data:
     driver: local
-  app_logs:
-    driver: local
-
-networks:
-  postmangpx-network:
-    driver: bridge

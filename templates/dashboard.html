@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - PostmanGPX{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-3xl font-bold">Dashboard</h1>
+    <p class="text-gray-400 mt-1">Visão geral do sistema de e-mails</p>
+</div>
+
+<!-- Stats Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="bg-gray-800 rounded-xl p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-gray-400 text-sm">Total de E-mails</p>
+                <p class="text-3xl font-bold mt-1">{{ total_emails }}</p>
+            </div>
+            <div class="bg-indigo-600/20 p-3 rounded-lg">
+                <i class="fas fa-envelope text-2xl text-indigo-400"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-gray-800 rounded-xl p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-gray-400 text-sm">Enviados</p>
+                <p class="text-3xl font-bold mt-1 text-green-400">{{ sent_emails }}</p>
+            </div>
+            <div class="bg-green-600/20 p-3 rounded-lg">
+                <i class="fas fa-check-circle text-2xl text-green-400"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-gray-800 rounded-xl p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-gray-400 text-sm">Falharam</p>
+                <p class="text-3xl font-bold mt-1 text-red-400">{{ failed_emails }}</p>
+            </div>
+            <div class="bg-red-600/20 p-3 rounded-lg">
+                <i class="fas fa-times-circle text-2xl text-red-400"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-gray-800 rounded-xl p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-gray-400 text-sm">Pendentes</p>
+                <p class="text-3xl font-bold mt-1 text-yellow-400">{{ pending_emails }}</p>
+            </div>
+            <div class="bg-yellow-600/20 p-3 rounded-lg">
+                <i class="fas fa-clock text-2xl text-yellow-400"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Stats -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <div class="bg-gray-800 rounded-xl p-6">
+        <h3 class="text-lg font-semibold mb-4">
+            <i class="fas fa-key mr-2 text-indigo-400"></i>API Keys Ativas
+        </h3>
+        <p class="text-4xl font-bold">{{ api_keys_count }}</p>
+        <a href="{{ url_for('api_keys') }}" class="text-indigo-400 hover:text-indigo-300 text-sm mt-2 inline-block">
+            Gerenciar API Keys →
+        </a>
+    </div>
+    
+    <div class="bg-gray-800 rounded-xl p-6">
+        <h3 class="text-lg font-semibold mb-4">
+            <i class="fas fa-server mr-2 text-indigo-400"></i>Provedores SMTP
+        </h3>
+        <p class="text-4xl font-bold">{{ providers_count }}</p>
+        <a href="{{ url_for('providers') }}" class="text-indigo-400 hover:text-indigo-300 text-sm mt-2 inline-block">
+            Gerenciar Provedores →
+        </a>
+    </div>
+</div>
+
+<!-- Recent Emails -->
+<div class="bg-gray-800 rounded-xl p-6">
+    <h3 class="text-lg font-semibold mb-4">
+        <i class="fas fa-history mr-2 text-indigo-400"></i>E-mails Recentes
+    </h3>
+    
+    {% if recent_emails %}
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead>
+                <tr class="text-left text-gray-400 text-sm border-b border-gray-700">
+                    <th class="pb-3">Destinatário</th>
+                    <th class="pb-3">Assunto</th>
+                    <th class="pb-3">Status</th>
+                    <th class="pb-3">Data</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for email in recent_emails %}
+                <tr class="border-b border-gray-700/50">
+                    <td class="py-3">{{ email.to_address }}</td>
+                    <td class="py-3 text-gray-300">{{ email.subject[:50] }}{% if email.subject|length > 50 %}...{% endif %}</td>
+                    <td class="py-3">
+                        {% if email.status == 'sent' %}
+                        <span class="px-2 py-1 bg-green-900/50 text-green-300 rounded text-xs">Enviado</span>
+                        {% elif email.status == 'failed' %}
+                        <span class="px-2 py-1 bg-red-900/50 text-red-300 rounded text-xs">Falhou</span>
+                        {% else %}
+                        <span class="px-2 py-1 bg-yellow-900/50 text-yellow-300 rounded text-xs">Pendente</span>
+                        {% endif %}
+                    </td>
+                    <td class="py-3 text-gray-400 text-sm">{{ email.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-gray-400 text-center py-8">Nenhum e-mail enviado ainda.</p>
+    {% endif %}
+</div>
+{% endblock %}

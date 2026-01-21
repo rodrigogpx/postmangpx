@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Provedores SMTP - PostmanGPX{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-8">
+    <div>
+        <h1 class="text-3xl font-bold">Provedores SMTP</h1>
+        <p class="text-gray-400 mt-1">Configure servidores de e-mail para envio</p>
+    </div>
+    <a href="{{ url_for('create_provider') }}" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-semibold transition">
+        <i class="fas fa-plus mr-2"></i>Novo Provedor
+    </a>
+</div>
+
+<!-- Providers List -->
+<div class="bg-gray-800 rounded-xl overflow-hidden">
+    {% if providers %}
+    <table class="w-full">
+        <thead>
+            <tr class="text-left text-gray-400 text-sm bg-gray-700/50">
+                <th class="px-6 py-4">Nome</th>
+                <th class="px-6 py-4">Tipo</th>
+                <th class="px-6 py-4">Host</th>
+                <th class="px-6 py-4">Porta</th>
+                <th class="px-6 py-4">Status</th>
+                <th class="px-6 py-4">Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for provider in providers %}
+            <tr class="border-t border-gray-700">
+                <td class="px-6 py-4 font-medium">{{ provider.name }}</td>
+                <td class="px-6 py-4">
+                    <span class="px-2 py-1 bg-gray-700 rounded text-sm">{{ provider.provider_type }}</span>
+                </td>
+                <td class="px-6 py-4 text-gray-400">{{ provider.host or '-' }}</td>
+                <td class="px-6 py-4 text-gray-400">{{ provider.port or '-' }}</td>
+                <td class="px-6 py-4">
+                    {% if provider.is_active %}
+                    <span class="px-2 py-1 bg-green-900/50 text-green-300 rounded text-xs">Ativo</span>
+                    {% else %}
+                    <span class="px-2 py-1 bg-red-900/50 text-red-300 rounded text-xs">Inativo</span>
+                    {% endif %}
+                </td>
+                <td class="px-6 py-4">
+                    <form method="POST" action="{{ url_for('delete_provider', provider_id=provider.id) }}" 
+                          onsubmit="return confirm('Tem certeza que deseja excluir este provedor?')">
+                        <button type="submit" class="text-red-400 hover:text-red-300">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="text-center py-12">
+        <i class="fas fa-server text-4xl text-gray-600 mb-4"></i>
+        <p class="text-gray-400">Nenhum provedor SMTP configurado.</p>
+        <p class="text-gray-500 text-sm mt-1">Configure um provedor para começar a enviar e-mails.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
