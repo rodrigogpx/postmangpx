@@ -1,4 +1,3 @@
-import Bull from 'bull';
 import { ENV } from './env';
 
 // Interface para job de e-mail
@@ -18,84 +17,64 @@ export interface EmailJob {
   maxAttempts: number;
 }
 
-// Criar fila de e-mails
-export const emailQueue = new Bull<EmailJob>('email processing', {
-  redis: ENV.redisUrl,
-  defaultJobOptions: {
-    attempts: 5,
-    backoff: {
-      type: 'exponential',
-      delay: 2000, // 2s, 4s, 8s, 16s, 32s
-    },
-    removeOnComplete: 100, // Manter últimos 100 jobs completos
-    removeOnFail: 50, // Manter últimos 50 jobs falhados
-  },
-});
+// Fila simples em memória para baixo consumo de recursos
+// Para produção pesada, usaríamos Bull/Redis, mas aqui focamos em simplicidade
+class SimpleQueue {
+  private queue: EmailJob[] = [];
+  private processing = false;
+  private handler: ((job: EmailJob) => Promise<void>) | null = null;
 
-// Configurar prioridades
-// Os handlers reais de processamento estão no server/workers/emailWorker.ts
-// Não definimos handlers aqui para evitar erro de "Cannot define the same handler twice"
+  setHandler(handler: (job: EmailJob) => Promise<void>) {
+    this.handler = handler;
+  }
 
-// Event listeners
-emailQueue.on('completed', (job, result) => {
-  console.log(`[Queue] Job completed: ${job.data.emailId}`, result);
-});
+  async add(job: EmailJob) {
+    this.queue.push(job);
+    this.process();
+  }
 
-emailQueue.on('failed', (job, err) => {
-  console.error(`[Queue] Job failed: ${job.data.emailId}`, err);
-});
+  private async process() {
+    if (this.processing || !this.handler || this.queue.length === 0) return;
+    
+    this.processing = true;
+    while (this.queue.length > 0) {
+      const job = this.queue.shift();
+      if (job) {
+        try {
+          await this.handler(job);
+        } catch (error) {
+          console.error(`[Queue] Job failed: ${job.emailId}`, error);
+        }
+      }
+    }
+    this.processing = false;
+  }
 
-emailQueue.on('stalled', (job) => {
-  console.warn(`[Queue] Job stalled: ${job.data.emailId}`);
-});
+  async getStats() {
+    return {
+      waiting: this.queue.length,
+      active: this.processing ? 1 : 0,
+      completed: 0, // Não rastreado na versão simples
+      failed: 0,
+      total: this.queue.length
+    };
+  }
+}
+
+export const emailQueue = new SimpleQueue();
 
 // Função para adicionar job na fila
-export async function addEmailJob(jobData: EmailJob): Promise<Bull.Job<EmailJob>> {
-  const priority = jobData.priority === 'high' ? 10 : 
-                   jobData.priority === 'low' ? 1 : 5;
-  
-  return emailQueue.add(jobData.priority, jobData, {
-    priority,
-    delay: 0,
-    attempts: jobData.maxAttempts,
-    backoff: {
-      type: 'exponential',
-      delay: 2000,
-    },
-  });
+export async function addEmailJob(jobData: EmailJob) {
+  await emailQueue.add(jobData);
+  return { id: jobData.emailId };
 }
 
 // Função para obter status da fila
 export async function getQueueStats() {
-  const waiting = await emailQueue.getWaiting();
-  const active = await emailQueue.getActive();
-  const completed = await emailQueue.getCompleted();
-  const failed = await emailQueue.getFailed();
-  
-  return {
-    waiting: waiting.length,
-    active: active.length,
-    completed: completed.length,
-    failed: failed.length,
-    total: waiting.length + active.length + completed.length + failed.length,
-  };
+  return await emailQueue.getStats();
 }
 
-// Função para limpar jobs antigos
+// Função para limpar jobs antigos (no-op na versão simples)
 export async function cleanQueue() {
-  await emailQueue.clean(24 * 60 * 60 * 1000, 'completed'); // 24 horas
-  await emailQueue.clean(7 * 24 * 60 * 60 * 1000, 'failed'); // 7 dias
+  // Nada para limpar em memória por enquanto
 }
-
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('[Queue] SIGTERM received, closing queue...');
-  await emailQueue.close();
-  process.exit(0);
-});
-
-process.on('SIGINT', async () => {
-  console.log('[Queue] SIGINT received, closing queue...');
-  await emailQueue.close();
-  process.exit(0);
-});

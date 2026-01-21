@@ -2,51 +2,7 @@ version: '3.8'
 
 services:
   # ============================================
-  # MySQL - Database
-  # ============================================
-  mysql:
-    image: mysql:8.0
-    container_name: postmangpx-mysql
-    environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: postmangpx
-      MYSQL_USER: postmangpx
-      MYSQL_PASSWORD: postmangpx123
-    volumes:
-      - mysql_data:/var/lib/mysql
-    ports:
-      - "3306:3306"
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - postmangpx-network
-    restart: unless-stopped
-
-  # ============================================
-  # Redis - Message Queue & Cache
-  # ============================================
-  redis:
-    image: redis:7-alpine
-    container_name: postmangpx-redis
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - postmangpx-network
-    restart: unless-stopped
-
-  # ============================================
-  # Node.js Application (API + Frontend)
+  # PostmanGPX - Single Container (SQLite + In-Memory Queue)
   # ============================================
   app:
     image: ghcr.io/rodrigogpx/postmangpx:latest
@@ -54,27 +10,22 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      DATABASE_URL: mysql://postmangpx:postmangpx123@mysql:3306/postmangpx
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET:-default_jwt_secret_change_in_production}
-      API_KEY_SALT: ${API_KEY_SALT:-default_salt_change_in_production}
+      # SQLite path inside container
+      DATABASE_URL: file:/app/data/postmangpx.db
+      JWT_SECRET: ${JWT_SECRET:-change_me_in_production}
+      API_KEY_SALT: ${API_KEY_SALT:-change_me_in_production}
       # Manus OAuth
-      VITE_APP_ID: ${VITE_APP_ID:-your_app_id}
+      VITE_APP_ID: ${VITE_APP_ID}
       VITE_OAUTH_PORTAL_URL: ${VITE_OAUTH_PORTAL_URL:-https://portal.manus.im}
       OAUTH_SERVER_URL: ${OAUTH_SERVER_URL:-https://api.manus.im}
     build:
       context: .
       dockerfile: Dockerfile
       args:
-        VITE_APP_ID: ${VITE_APP_ID:-your_app_id}
+        VITE_APP_ID: ${VITE_APP_ID}
         VITE_OAUTH_PORTAL_URL: ${VITE_OAUTH_PORTAL_URL:-https://portal.manus.im}
     ports:
       - "3000:3000"
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
@@ -89,10 +40,6 @@ services:
       - app_logs:/app/logs
 
 volumes:
-  mysql_data:
-    driver: local
-  redis_data:
-    driver: local
   app_data:
     driver: local
   app_logs:

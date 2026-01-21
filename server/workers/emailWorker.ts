@@ -248,19 +248,12 @@ async function processEmailJob(job: EmailJob) {
   }
 }
 
-// Registrar processadores para cada prioridade
-emailQueue.process('high', 5, async (job) => {
-  await processEmailJob(job.data);
-});
-
-emailQueue.process('normal', 3, async (job) => {
-  await processEmailJob(job.data);
-});
-
-emailQueue.process('low', 1, async (job) => {
-  await processEmailJob(job.data);
+// Configurar handler na fila simples
+emailQueue.setHandler(async (jobData) => {
+  await processEmailJob(jobData);
 });
 
 // Inicializar workers
-console.log('[Worker] Email workers started');
+console.log('[Worker] Email workers started (Simple In-Memory Queue)');
 registerProviders().catch(console.error);
+
