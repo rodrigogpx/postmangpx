@@ -61,6 +61,16 @@ services:
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-default_jwt_secret_change_in_production}
       API_KEY_SALT: ${API_KEY_SALT:-default_salt_change_in_production}
+      # Manus OAuth
+      VITE_APP_ID: ${VITE_APP_ID:-your_app_id}
+      VITE_OAUTH_PORTAL_URL: ${VITE_OAUTH_PORTAL_URL:-https://portal.manus.im}
+      OAUTH_SERVER_URL: ${OAUTH_SERVER_URL:-https://api.manus.im}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_APP_ID: ${VITE_APP_ID:-your_app_id}
+        VITE_OAUTH_PORTAL_URL: ${VITE_OAUTH_PORTAL_URL:-https://portal.manus.im}
     ports:
       - "3000:3000"
     depends_on:

@@ -16,6 +16,12 @@ RUN pnpm install
 # Copiar código
 COPY . .
 
+# Build Args para o Vite (Frontend)
+ARG VITE_APP_ID
+ARG VITE_OAUTH_PORTAL_URL
+ENV VITE_APP_ID=$VITE_APP_ID
+ENV VITE_OAUTH_PORTAL_URL=$VITE_OAUTH_PORTAL_URL
+
 # Build
 RUN pnpm build
 
