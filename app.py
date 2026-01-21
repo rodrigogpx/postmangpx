@@ -10,6 +10,7 @@ from functools import wraps
 
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import text
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # Configuração
@@ -424,6 +425,24 @@ def init_db():
     
     with app.app_context():
         db.create_all()
+
+        try:
+            if str(db.engine.url).startswith('sqlite'):
+                columns = set()
+                with db.engine.connect() as conn:
+                    result = conn.execute(text('PRAGMA table_info(emails)'))
+                    for row in result:
+                        columns.add(row[1])
+
+                    if 'delivered_at' not in columns:
+                        conn.execute(text('ALTER TABLE emails ADD COLUMN delivered_at DATETIME'))
+                    if 'delivery_status' not in columns:
+                        conn.execute(text('ALTER TABLE emails ADD COLUMN delivery_status VARCHAR(50)'))
+                    if 'delivery_response' not in columns:
+                        conn.execute(text('ALTER TABLE emails ADD COLUMN delivery_response TEXT'))
+                    conn.commit()
+        except Exception:
+            pass
         
         # Verificar se usuário admin existe
         admin = User.query.filter_by(username='admin').first()
