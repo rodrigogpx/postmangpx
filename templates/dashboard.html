@@ -1,7 +1,19 @@
 {% extends "base.html" %}
 {% block title %}Dashboard - PostmanGPX{% endblock %}
 
-{% block content %}
+{% block body %}
+<div class="flex">
+    {% include "sidebar.html" %}
+    <main class="flex-1 ml-64 p-8">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-4 p-4 rounded-lg {% if category == 'error' %}bg-red-900/50 text-red-200{% else %}bg-green-900/50 text-green-200{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
 <div class="mb-8">
     <h1 class="text-3xl font-bold">Dashboard</h1>
     <p class="text-gray-400 mt-1">Visão geral do sistema de e-mails</p>
@@ -121,5 +133,7 @@
     {% else %}
     <p class="text-gray-400 text-center py-8">Nenhum e-mail enviado ainda.</p>
     {% endif %}
+</div>
+    </main>
 </div>
 {% endblock %}

@@ -1,7 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Provedores SMTP - PostmanGPX{% endblock %}
 
-{% block content %}
+{% block body %}
+<div class="flex">
+    {% include "sidebar.html" %}
+    <main class="flex-1 ml-64 p-8">
 <div class="flex justify-between items-center mb-8">
     <div>
         <h1 class="text-3xl font-bold">Provedores SMTP</h1>
@@ -61,5 +64,7 @@
         <p class="text-gray-500 text-sm mt-1">Configure um provedor para começar a enviar e-mails.</p>
     </div>
     {% endif %}
+</div>
+    </main>
 </div>
 {% endblock %}

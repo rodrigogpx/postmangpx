@@ -1,7 +1,10 @@
 {% extends "base.html" %}
 {% block title %}E-mails - PostmanGPX{% endblock %}
 
-{% block content %}
+{% block body %}
+<div class="flex">
+    {% include "sidebar.html" %}
+    <main class="flex-1 ml-64 p-8">
 <div class="mb-8">
     <h1 class="text-3xl font-bold">E-mails</h1>
     <p class="text-gray-400 mt-1">Histórico de e-mails enviados</p>
@@ -81,5 +84,7 @@
         <p class="text-gray-500 text-sm mt-1">Use a API para enviar seu primeiro e-mail.</p>
     </div>
     {% endif %}
+</div>
+    </main>
 </div>
 {% endblock %}

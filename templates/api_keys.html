@@ -1,7 +1,19 @@
 {% extends "base.html" %}
 {% block title %}API Keys - PostmanGPX{% endblock %}
 
-{% block content %}
+{% block body %}
+<div class="flex">
+    {% include "sidebar.html" %}
+    <main class="flex-1 ml-64 p-8">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-4 p-4 rounded-lg {% if category == 'error' %}bg-red-900/50 text-red-200{% else %}bg-green-900/50 text-green-200{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
 <div class="flex justify-between items-center mb-8">
     <div>
         <h1 class="text-3xl font-bold">API Keys</h1>
@@ -84,5 +96,7 @@
     "subject": "Teste de E-mail",
     "html": "&lt;h1&gt;Olá!&lt;/h1&gt;&lt;p&gt;Este é um teste.&lt;/p&gt;"
   }'</code></pre>
+</div>
+    </main>
 </div>
 {% endblock %}
