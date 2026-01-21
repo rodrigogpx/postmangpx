@@ -46,12 +46,22 @@
                     {% endif %}
                 </td>
                 <td class="px-6 py-4">
-                    <form method="POST" action="{{ url_for('delete_provider', provider_id=provider.id) }}" 
-                          onsubmit="return confirm('Tem certeza que deseja excluir este provedor?')">
-                        <button type="submit" class="text-red-400 hover:text-red-300">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </form>
+                    <div class="flex items-center gap-3">
+                        <form method="POST" action="{{ url_for('test_provider', provider_id=provider.id) }}" class="flex items-center gap-2">
+                            <input type="email" name="test_to" required
+                                class="w-56 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+                                placeholder="email para teste">
+                            <button type="submit" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 rounded text-sm font-semibold transition">
+                                <i class="fas fa-paper-plane mr-2"></i>Testar
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ url_for('delete_provider', provider_id=provider.id) }}" 
+                              onsubmit="return confirm('Tem certeza que deseja excluir este provedor?')">
+                            <button type="submit" class="text-red-400 hover:text-red-300">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
                 </td>
             </tr>
             {% endfor %}

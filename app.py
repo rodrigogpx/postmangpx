@@ -5,6 +5,11 @@ Flask Application
 import os
 import hashlib
 import secrets
+import smtplib
+import ssl
+from email.message import EmailMessage
+from io import StringIO
+from contextlib import redirect_stdout
 from datetime import datetime
 from functools import wraps
 
@@ -279,6 +284,82 @@ def delete_provider(provider_id):
     return redirect(url_for('providers'))
 
 
+@app.route('/providers/<provider_id>/test', methods=['POST'])
+@login_required
+def test_provider(provider_id):
+    provider = SmtpProvider.query.filter_by(id=provider_id, user_id=session['user_id']).first_or_404()
+    test_to = request.form.get('test_to')
+    if not test_to:
+        flash('Informe o email do destinatário para teste.', 'error')
+        return redirect(url_for('providers'))
+
+    from_address = provider.username or test_to
+
+    try:
+        refused, log = _smtp_send(
+            provider=provider,
+            from_address=from_address,
+            to_address=test_to,
+            subject='Teste SMTP - PostmanGPX',
+            html='<p>Teste de envio SMTP via PostmanGPX</p>',
+            text_content='Teste de envio SMTP via PostmanGPX'
+        )
+
+        log_preview = (log or '')[-2000:]
+
+        if refused:
+            flash(f'Falha ao enviar teste. Recusados: {refused}. Log: {log_preview}', 'error')
+            return redirect(url_for('providers'))
+
+        flash(f'Teste enviado com sucesso. Log SMTP: {log_preview}', 'success')
+        return redirect(url_for('providers'))
+    except Exception as e:
+        flash(f'Falha ao enviar teste: {str(e)}', 'error')
+        return redirect(url_for('providers'))
+
+
+def _get_active_provider(user_id: int):
+    return (
+        SmtpProvider.query
+        .filter_by(user_id=user_id, is_active=True)
+        .order_by(SmtpProvider.priority.desc(), SmtpProvider.created_at.desc())
+        .first()
+    )
+
+
+def _smtp_send(provider: SmtpProvider, from_address: str, to_address: str, subject: str, html: str | None, text_content: str | None):
+    if not provider.host or not provider.port:
+        raise ValueError('SMTP provider host/port not configured')
+ 
+    msg = EmailMessage()
+    msg['From'] = from_address
+    msg['To'] = to_address
+    msg['Subject'] = subject
+    msg.set_content(text_content or '', subtype='plain')
+    if html:
+        msg.add_alternative(html, subtype='html')
+
+    buffer = StringIO()
+    with redirect_stdout(buffer):
+        ctx = ssl.create_default_context()
+        if provider.port == 465 and provider.use_tls:
+            with smtplib.SMTP_SSL(provider.host, provider.port, timeout=30, context=ctx) as smtp:
+                smtp.set_debuglevel(1)
+                if provider.username and provider.password:
+                    smtp.login(provider.username, provider.password)
+                refused = smtp.send_message(msg)
+        else:
+            with smtplib.SMTP(provider.host, provider.port, timeout=30) as smtp:
+                smtp.set_debuglevel(1)
+                if provider.use_tls:
+                    smtp.starttls(context=ctx)
+                if provider.username and provider.password:
+                    smtp.login(provider.username, provider.password)
+                refused = smtp.send_message(msg)
+
+    return refused, buffer.getvalue()
+
+
 @app.route('/emails')
 @login_required
 def emails():
@@ -328,13 +409,51 @@ def api_send_email():
     
     db.session.add(email)
     db.session.commit()
-    
-    # TODO: Enviar para fila de processamento
-    # Por enquanto, simular envio
-    email.status = 'sent'
-    email.sent_at = datetime.utcnow()
+
+    provider = _get_active_provider(request.api_key.user_id)
+    if not provider:
+        email.status = 'failed'
+        email.failure_reason = 'No active SMTP provider configured'
+        db.session.commit()
+        return jsonify({'error': 'No active SMTP provider configured'}), 400
+
+    email.provider_id = provider.id
     db.session.commit()
-    
+
+    try:
+        from_address = provider.username or email.to_address
+        refused, log = _smtp_send(
+            provider=provider,
+            from_address=from_address,
+            to_address=email.to_address,
+            subject=email.subject,
+            html=email.html_content,
+            text_content=email.text_content
+        )
+
+        if refused:
+            email.status = 'failed'
+            email.failure_reason = f'Recipient refused: {refused}'
+            email.delivery_response = log
+            db.session.commit()
+            return jsonify({'success': False, 'id': email.id, 'status': email.status, 'error': email.failure_reason}), 500
+
+        email.status = 'sent'
+        email.sent_at = datetime.utcnow()
+        email.delivery_status = 'smtp_accepted'
+        email.delivered_at = datetime.utcnow()
+        email.delivery_response = log
+        db.session.commit()
+    except Exception as e:
+        email.status = 'failed'
+        email.failure_reason = str(e)
+        try:
+            email.delivery_response = (email.delivery_response or '')
+        except Exception:
+            pass
+        db.session.commit()
+        return jsonify({'success': False, 'id': email.id, 'status': email.status, 'error': email.failure_reason}), 500
+     
     return jsonify({
         'success': True,
         'id': email.id,
