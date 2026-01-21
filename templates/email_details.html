@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+{% block title %}Detalhes do E-mail - PostmanGPX{% endblock %}
+
+{% block body %}
+<div class="flex">
+    {% include "sidebar.html" %}
+    <main class="flex-1 ml-64 p-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex items-center gap-4 mb-4">
+                <a href="{{ url_for('emails') }}" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-arrow-left mr-2"></i>Voltar para E-mails
+                </a>
+            </div>
+            <h1 class="text-3xl font-bold">Detalhes do E-mail</h1>
+            <p class="text-gray-400 mt-1">Informações completas e logs de envio</p>
+        </div>
+
+        <!-- Email Details -->
+        <div class="space-y-6">
+            <!-- Status Card -->
+            <div class="bg-gray-800 rounded-xl p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-semibold">Status do Envio</h2>
+                    {% if email.status == 'delivered' %}
+                    <span class="px-3 py-1 bg-green-900/50 text-green-300 rounded text-sm">
+                        <i class="fas fa-check-double mr-2"></i>Entregue ao Provedor
+                    </span>
+                    {% elif email.status == 'sent' %}
+                    <span class="px-3 py-1 bg-blue-900/50 text-blue-300 rounded text-sm">
+                        <i class="fas fa-paper-plane mr-2"></i>Enviado
+                    </span>
+                    {% elif email.status == 'bounced' %}
+                    <span class="px-3 py-1 bg-red-900/50 text-red-300 rounded text-sm">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>Rejeitado
+                    </span>
+                    {% elif email.status == 'failed' %}
+                    <span class="px-3 py-1 bg-red-900/50 text-red-300 rounded text-sm">
+                        <i class="fas fa-times mr-2"></i>Falha no Envio
+                    </span>
+                    {% else %}
+                    <span class="px-3 py-1 bg-yellow-900/50 text-yellow-300 rounded text-sm">
+                        <i class="fas fa-clock mr-2"></i>Pendente de Envio
+                    </span>
+                    {% endif %}
+                </div>
+
+                <!-- Delivery Status -->
+                {% if email.delivery_status %}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="text-gray-400 text-sm">Status de Delivery</label>
+                        <div class="bg-gray-700 px-3 py-2 rounded mt-1">
+                            {% if email.delivery_status == 'delivered' %}
+                            <span class="text-green-300">
+                                <i class="fas fa-check-circle mr-2"></i>Entregue
+                            </span>
+                            {% elif email.delivery_status == 'bounced' %}
+                            <span class="text-red-300">
+                                <i class="fas fa-exclamation-circle mr-2"></i>Rejeitado
+                            </span>
+                            {% elif email.delivery_status == 'delayed' %}
+                            <span class="text-yellow-300">
+                                <i class="fas fa-hourglass-half mr-2"></i>Adiado
+                            </span>
+                            {% else %}
+                            {{ email.delivery_status }}
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if email.delivered_at %}
+                    <div>
+                        <label class="text-gray-400 text-sm">Data da Entrega</label>
+                        <div class="bg-gray-700 px-3 py-2 rounded mt-1">
+                            {{ email.delivered_at.strftime('%d/%m/%Y %H:%M:%S') }}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- Delivery Response -->
+                {% if email.delivery_response %}
+                <div class="bg-blue-900/20 border border-blue-800 rounded-lg p-4 mb-4">
+                    <h3 class="text-blue-300 font-medium mb-2">
+                        <i class="fas fa-server mr-2"></i>Resposta do Servidor
+                    </h3>
+                    <p class="text-blue-200 text-sm font-mono">{{ email.delivery_response }}</p>
+                </div>
+                {% endif %}
+
+                <!-- Failure Reason -->
+                {% if email.failure_reason %}
+                <div class="bg-red-900/20 border border-red-800 rounded-lg p-4">
+                    <h3 class="text-red-300 font-medium mb-2">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>Motivo da Falha
+                    </h3>
+                    <p class="text-red-200 text-sm">{{ email.failure_reason }}</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Basic Information -->
+            <div class="bg-gray-800 rounded-xl p-6">
+                <h2 class="text-xl font-semibold mb-4">Informações Básicas</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-gray-400 text-sm">ID do E-mail</label>
+                        <div class="font-mono text-sm bg-gray-700 px-3 py-2 rounded mt-1">
+                            {{ email.id }}
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-gray-400 text-sm">ID Externo</label>
+                        <div class="font-mono text-sm bg-gray-700 px-3 py-2 rounded mt-1">
+                            {{ email.external_id or 'N/A' }}
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-gray-400 text-sm">Destinatário</label>
+                        <div class="bg-gray-700 px-3 py-2 rounded mt-1">
+                            {{ email.to_address }}
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-gray-400 text-sm">Data de Criação</label>
+                        <div class="bg-gray-700 px-3 py-2 rounded mt-1">
+                            {{ email.created_at.strftime('%d/%m/%Y %H:%M:%S') }}
+                        </div>
+                    </div>
+                    {% if email.sent_at %}
+                    <div>
+                        <label class="text-gray-400 text-sm">Data de Envio</label>
+                        <div class="bg-gray-700 px-3 py-2 rounded mt-1">
+                            {{ email.sent_at.strftime('%d/%m/%Y %H:%M:%S') }}
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <label class="text-gray-400 text-sm">Tentativas</label>
+                        <div class="bg-gray-700 px-3 py-2 rounded mt-1">
+                            {{ email.attempts }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Email Content -->
+            <div class="bg-gray-800 rounded-xl p-6">
+                <h2 class="text-xl font-semibold mb-4">Conteúdo do E-mail</h2>
+                
+                <!-- Subject -->
+                <div class="mb-4">
+                    <label class="text-gray-400 text-sm">Assunto</label>
+                    <div class="bg-gray-700 px-3 py-2 rounded mt-1">
+                        {{ email.subject }}
+                    </div>
+                </div>
+
+                <!-- CC/BCC -->
+                {% if email.cc or email.bcc %}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    {% if email.cc %}
+                    <div>
+                        <label class="text-gray-400 text-sm">CC</label>
+                        <div class="bg-gray-700 px-3 py-2 rounded mt-1">
+                            {{ email.cc }}
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if email.bcc %}
+                    <div>
+                        <label class="text-gray-400 text-sm">BCC</label>
+                        <div class="bg-gray-700 px-3 py-2 rounded mt-1">
+                            {{ email.bcc }}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- HTML Content -->
+                {% if email.html_content %}
+                <div class="mb-4">
+                    <label class="text-gray-400 text-sm">Conteúdo HTML</label>
+                    <div class="bg-gray-900 border border-gray-700 rounded-lg p-4 mt-1 max-h-96 overflow-y-auto">
+                        <div class="text-sm">
+                            {{ email.html_content | safe }}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Text Content -->
+                {% if email.text_content %}
+                <div>
+                    <label class="text-gray-400 text-sm">Conteúdo Texto</label>
+                    <div class="bg-gray-900 border border-gray-700 rounded-lg p-4 mt-1">
+                        <pre class="text-sm text-gray-300 whitespace-pre-wrap">{{ email.text_content }}</pre>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Technical Details -->
+            <div class="bg-gray-800 rounded-xl p-6">
+                <h2 class="text-xl font-semibold mb-4">Detalhes Técnicos</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-gray-400 text-sm">API Key ID</label>
+                        <div class="font-mono text-sm bg-gray-700 px-3 py-2 rounded mt-1">
+                            {{ email.api_key_id or 'N/A' }}
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-gray-400 text-sm">Provider ID</label>
+                        <div class="font-mono text-sm bg-gray-700 px-3 py-2 rounded mt-1">
+                            {{ email.provider_id or 'N/A' }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}

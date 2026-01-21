@@ -84,9 +84,12 @@ class Email(db.Model):
     subject = db.Column(db.String(500), nullable=False)
     html_content = db.Column(db.Text)
     text_content = db.Column(db.Text)
-    status = db.Column(db.String(50), default='pending')  # pending, sent, failed
+    status = db.Column(db.String(50), default='pending')  # pending, sent, delivered, failed, bounced
     attempts = db.Column(db.Integer, default=0)
     sent_at = db.Column(db.DateTime)
+    delivered_at = db.Column(db.DateTime)  # Quando foi entregue ao provedor
+    delivery_status = db.Column(db.String(50))  # delivered, bounced, delayed, etc
+    delivery_response = db.Column(db.Text)  # Resposta do servidor SMTP
     failure_reason = db.Column(db.Text)
     external_id = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -283,6 +286,13 @@ def emails():
     return render_template('emails.html', emails=emails_list)
 
 
+@app.route('/emails/<email_id>')
+@login_required
+def email_details(email_id):
+    email = Email.query.filter_by(id=email_id).first_or_404()
+    return render_template('email_details.html', email=email)
+
+
 # ============================================
 # API Routes
 # ============================================
@@ -290,7 +300,9 @@ def emails():
 @app.route('/api/v1/send', methods=['POST'])
 @api_key_required
 def api_send_email():
-    data = request.get_json()
+    data = request.get_json(force=True)
+    print(f'[DEBUG] Received data: {data}')
+    print(f'[DEBUG] Data type: {type(data)}')
     
     if not data:
         return jsonify({'error': 'JSON body required'}), 400
@@ -342,9 +354,57 @@ def api_email_status(email_id):
         'to': email.to_address,
         'subject': email.subject,
         'status': email.status,
+        'delivery_status': email.delivery_status,
         'created_at': email.created_at.isoformat(),
         'sent_at': email.sent_at.isoformat() if email.sent_at else None,
-        'failure_reason': email.failure_reason
+        'delivered_at': email.delivered_at.isoformat() if email.delivered_at else None,
+        'failure_reason': email.failure_reason,
+        'delivery_response': email.delivery_response
+    })
+
+
+@app.route('/api/v1/delivery/<email_id>', methods=['POST'])
+@api_key_required
+def api_check_delivery(email_id):
+    """Verifica o status de delivery de um email (simulação)"""
+    email = Email.query.filter_by(id=email_id).first()
+    
+    if not email:
+        return jsonify({'error': 'Email not found'}), 404
+    
+    if email.status != 'sent':
+        return jsonify({'error': 'Email not sent yet'}), 400
+    
+    # Simulação de verificação de delivery
+    # Em produção, isso verificaria com o servidor SMTP ou serviço de email
+    import random
+    delivery_statuses = ['delivered', 'bounced', 'delayed']
+    weights = [0.85, 0.10, 0.05]  # 85% delivered, 10% bounced, 5% delayed
+    
+    delivery_status = random.choices(delivery_statuses, weights=weights)[0]
+    
+    if delivery_status == 'delivered':
+        email.delivery_status = 'delivered'
+        email.delivered_at = datetime.utcnow()
+        email.delivery_response = '250 2.0.0 OK Message accepted for delivery'
+        email.status = 'delivered'
+    elif delivery_status == 'bounced':
+        email.delivery_status = 'bounced'
+        email.delivery_response = '550 5.1.1 User unknown'
+        email.status = 'bounced'
+        email.failure_reason = 'Email bounced - recipient not found'
+    else:  # delayed
+        email.delivery_status = 'delayed'
+        email.delivery_response = '451 4.4.1 Temporary server error'
+    
+    db.session.commit()
+    
+    return jsonify({
+        'id': email.id,
+        'status': email.status,
+        'delivery_status': email.delivery_status,
+        'delivered_at': email.delivered_at.isoformat() if email.delivered_at else None,
+        'delivery_response': email.delivery_response
     })
 
 
