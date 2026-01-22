@@ -51,6 +51,7 @@ class ApiKey(db.Model):
     __tablename__ = 'api_keys'
     id = db.Column(db.String(36), primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    provider_id = db.Column(db.String(36), db.ForeignKey('smtp_providers.id'))
     name = db.Column(db.String(255), nullable=False)
     key_hash = db.Column(db.String(256), nullable=False, unique=True)
     key_prefix = db.Column(db.String(20), nullable=False)  # Para exibição
@@ -60,6 +61,7 @@ class ApiKey(db.Model):
     last_used_at = db.Column(db.DateTime)
 
     user = db.relationship('User', backref=db.backref('api_keys', lazy=True))
+    provider = db.relationship('SmtpProvider', backref=db.backref('api_keys', lazy=True))
 
 
 class SmtpProvider(db.Model):
@@ -205,7 +207,8 @@ def logout():
 @login_required
 def api_keys():
     keys = ApiKey.query.filter_by(user_id=session['user_id']).all()
-    return render_template('api_keys.html', api_keys=keys)
+    providers_list = SmtpProvider.query.filter_by(user_id=session['user_id']).all()
+    return render_template('api_keys.html', api_keys=keys, providers=providers_list)
 
 
 @app.route('/api-keys/create', methods=['POST'])
@@ -241,6 +244,26 @@ def delete_api_key(key_id):
         db.session.delete(key)
         db.session.commit()
         flash('API Key removida.', 'success')
+    return redirect(url_for('api_keys'))
+
+
+@app.route('/api-keys/<key_id>/provider', methods=['POST'])
+@login_required
+def set_api_key_provider(key_id):
+    key = ApiKey.query.filter_by(id=key_id, user_id=session['user_id']).first_or_404()
+    provider_id = request.form.get('provider_id')
+
+    if provider_id:
+        provider = SmtpProvider.query.filter_by(id=provider_id, user_id=session['user_id']).first()
+        if not provider:
+            flash('Provedor inválido.', 'error')
+            return redirect(url_for('api_keys'))
+        key.provider_id = provider.id
+    else:
+        key.provider_id = None
+
+    db.session.commit()
+    flash('Provedor de envio atualizado para a API Key.', 'success')
     return redirect(url_for('api_keys'))
 
 
@@ -441,7 +464,15 @@ def api_send_email():
     db.session.add(email)
     db.session.commit()
 
-    provider = _get_active_provider(request.api_key.user_id)
+    provider = None
+    if getattr(request.api_key, 'provider_id', None):
+        provider = SmtpProvider.query.filter_by(
+            id=request.api_key.provider_id,
+            user_id=request.api_key.user_id,
+            is_active=True,
+        ).first()
+    if not provider:
+        provider = _get_active_provider(request.api_key.user_id)
     if not provider:
         email.status = 'failed'
         email.failure_reason = 'No active SMTP provider configured'
@@ -583,6 +614,28 @@ def health():
     return jsonify({'status': 'ok', 'timestamp': datetime.utcnow().isoformat()})
 
 
+@app.route('/api/v1/api-keys/<key_id>/provider', methods=['PUT'])
+@login_required
+def api_set_api_key_provider(key_id):
+    data = request.get_json(force=True, silent=True) or {}
+    provider_id = data.get('providerId') or data.get('provider_id')
+
+    key = ApiKey.query.filter_by(id=key_id, user_id=session['user_id']).first()
+    if not key:
+        return jsonify({'error': 'API Key not found'}), 404
+
+    if provider_id:
+        provider = SmtpProvider.query.filter_by(id=provider_id, user_id=session['user_id']).first()
+        if not provider:
+            return jsonify({'error': 'Provider not found'}), 404
+        key.provider_id = provider.id
+    else:
+        key.provider_id = None
+
+    db.session.commit()
+    return jsonify({'success': True, 'apiKeyId': key.id, 'providerId': key.provider_id})
+
+
 # ============================================
 # Inicialização
 # ============================================
@@ -609,6 +662,20 @@ def init_db():
                         conn.execute(text('ALTER TABLE emails ADD COLUMN delivery_status VARCHAR(50)'))
                     if 'delivery_response' not in columns:
                         conn.execute(text('ALTER TABLE emails ADD COLUMN delivery_response TEXT'))
+                    conn.commit()
+        except Exception:
+            pass
+
+        try:
+            if str(db.engine.url).startswith('sqlite'):
+                columns = set()
+                with db.engine.connect() as conn:
+                    result = conn.execute(text('PRAGMA table_info(api_keys)'))
+                    for row in result:
+                        columns.add(row[1])
+
+                    if 'provider_id' not in columns:
+                        conn.execute(text('ALTER TABLE api_keys ADD COLUMN provider_id VARCHAR(36)'))
                     conn.commit()
         except Exception:
             pass
