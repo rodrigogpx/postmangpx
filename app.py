@@ -8,6 +8,7 @@ import secrets
 import smtplib
 import ssl
 from email.message import EmailMessage
+from email.utils import parseaddr
 from io import StringIO
 from contextlib import redirect_stdout
 from datetime import datetime
@@ -327,14 +328,40 @@ def _get_active_provider(user_id: int):
     )
 
 
-def _smtp_send(provider: SmtpProvider, from_address: str, to_address: str, subject: str, html: str | None, text_content: str | None):
+def _extract_email(value: str | None):
+    if not value:
+        return None
+    _, addr = parseaddr(value)
+    addr = (addr or '').strip()
+    return addr or None
+
+
+def _smtp_send(
+    provider: SmtpProvider,
+    from_address: str,
+    to_address: str,
+    subject: str,
+    html: str | None,
+    text_content: str | None,
+    reply_to: str | None = None,
+    cc: str | None = None,
+    bcc: str | None = None,
+):
     if not provider.host or not provider.port:
         raise ValueError('SMTP provider host/port not configured')
  
     msg = EmailMessage()
     msg['From'] = from_address
     msg['To'] = to_address
+    if cc:
+        msg['Cc'] = cc
+    if bcc:
+        # NOTE: EmailMessage/send_message pode usar este header para determinar destinatários.
+        # Alguns clientes exibem Bcc se não for removido, então removemos antes de enviar.
+        msg['Bcc'] = bcc
     msg['Subject'] = subject
+    if reply_to:
+        msg['Reply-To'] = reply_to
     msg.set_content(text_content or '', subtype='plain')
     if html:
         msg.add_alternative(html, subtype='html')
@@ -347,6 +374,8 @@ def _smtp_send(provider: SmtpProvider, from_address: str, to_address: str, subje
                 smtp.set_debuglevel(1)
                 if provider.username and provider.password:
                     smtp.login(provider.username, provider.password)
+                if 'Bcc' in msg:
+                    del msg['Bcc']
                 refused = smtp.send_message(msg)
         else:
             with smtplib.SMTP(provider.host, provider.port, timeout=30) as smtp:
@@ -355,6 +384,8 @@ def _smtp_send(provider: SmtpProvider, from_address: str, to_address: str, subje
                     smtp.starttls(context=ctx)
                 if provider.username and provider.password:
                     smtp.login(provider.username, provider.password)
+                if 'Bcc' in msg:
+                    del msg['Bcc']
                 refused = smtp.send_message(msg)
 
     return refused, buffer.getvalue()
@@ -421,14 +452,33 @@ def api_send_email():
     db.session.commit()
 
     try:
-        from_address = provider.username or email.to_address
+        requested_from = data.get('from')
+        requested_reply_to = data.get('replyTo') or data.get('reply_to')
+
+        provider_email = _extract_email(provider.username)
+        requested_from_email = _extract_email(requested_from)
+
+        # Política simples anti-spoofing:
+        # - Se o provider tem username/email e o "from" solicitado não bate com ele,
+        #   manter From como provider.username e usar Reply-To como solicitado.
+        # - Se não existe provider.username, aceitar o From solicitado.
+        if provider_email and requested_from_email and requested_from_email.lower() != provider_email.lower():
+            from_address = provider.username
+            reply_to = requested_from_email
+        else:
+            from_address = requested_from or provider.username or email.to_address
+            reply_to = _extract_email(requested_reply_to)
+
         refused, log = _smtp_send(
             provider=provider,
             from_address=from_address,
             to_address=email.to_address,
             subject=email.subject,
             html=email.html_content,
-            text_content=email.text_content
+            text_content=email.text_content,
+            reply_to=reply_to,
+            cc=email.cc,
+            bcc=email.bcc,
         )
 
         if refused:
