@@ -7,6 +7,7 @@ import hashlib
 import secrets
 import smtplib
 import ssl
+import base64
 from email.message import EmailMessage
 from email.utils import parseaddr
 from io import StringIO
@@ -369,6 +370,7 @@ def _smtp_send(
     reply_to: str | None = None,
     cc: str | None = None,
     bcc: str | None = None,
+    attachments: list[dict] | None = None,
 ):
     if not provider.host or not provider.port:
         raise ValueError('SMTP provider host/port not configured')
@@ -388,6 +390,43 @@ def _smtp_send(
     msg.set_content(text_content or '', subtype='plain')
     if html:
         msg.add_alternative(html, subtype='html')
+
+    if attachments:
+        for att in attachments:
+            filename = att.get('filename')
+            content_type = att.get('contentType') or att.get('content_type') or 'application/octet-stream'
+            content_base64 = att.get('contentBase64') or att.get('content_base64')
+            cid = att.get('cid')
+            disposition = att.get('disposition') or ('inline' if cid else 'attachment')
+
+            if not filename or not content_base64:
+                raise ValueError('Attachment requires filename and contentBase64')
+
+            try:
+                raw = base64.b64decode(content_base64)
+            except Exception:
+                raise ValueError('Invalid attachment contentBase64')
+
+            maintype, subtype = (content_type.split('/', 1) + ['octet-stream'])[:2]
+
+            if cid and html:
+                html_part = msg.get_payload()[-1]
+                html_part.add_related(
+                    raw,
+                    maintype=maintype,
+                    subtype=subtype,
+                    cid=f"<{cid}>",
+                    filename=filename,
+                    disposition=disposition,
+                )
+            else:
+                msg.add_attachment(
+                    raw,
+                    maintype=maintype,
+                    subtype=subtype,
+                    filename=filename,
+                    disposition=disposition,
+                )
 
     buffer = StringIO()
     with redirect_stdout(buffer):
@@ -486,6 +525,10 @@ def api_send_email():
         requested_from = data.get('from')
         requested_reply_to = data.get('replyTo') or data.get('reply_to')
 
+        attachments = data.get('attachments')
+        if attachments is not None and not isinstance(attachments, list):
+            raise ValueError('Field "attachments" must be a list')
+
         provider_email = _extract_email(provider.username)
         requested_from_email = _extract_email(requested_from)
 
@@ -510,6 +553,7 @@ def api_send_email():
             reply_to=reply_to,
             cc=email.cc,
             bcc=email.bcc,
+            attachments=attachments,
         )
 
         if refused:
