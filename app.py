@@ -231,7 +231,18 @@ def settings():
         return redirect(url_for('dashboard'))
         
     users = User.query.all()
-    return render_template('settings.html', users=users)
+    
+    # Obter versão do git (short hash)
+    git_version = "Desconhecida"
+    try:
+        import subprocess
+        result = subprocess.run(['git', 'rev-parse', '--short', 'HEAD'], 
+                               capture_output=True, text=True, check=True)
+        git_version = result.stdout.strip()
+    except Exception:
+        pass
+        
+    return render_template('settings.html', users=users, git_version=git_version)
 
 
 @app.route('/settings/users/create', methods=['POST'])
