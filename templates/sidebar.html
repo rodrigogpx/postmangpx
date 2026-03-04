@@ -19,6 +19,11 @@
         <a href="{{ url_for('providers') }}" class="flex items-center px-4 py-2 rounded-lg hover:bg-gray-700 {% if request.endpoint == 'providers' %}bg-gray-700{% endif %}">
             <i class="fas fa-server w-5 mr-3"></i>Provedores
         </a>
+        {% if session.role == 'admin' %}
+        <a href="{{ url_for('settings') }}" class="flex items-center px-4 py-2 rounded-lg hover:bg-gray-700 {% if request.endpoint == 'settings' %}bg-gray-700{% endif %}">
+            <i class="fas fa-cog w-5 mr-3"></i>Configurações
+        </a>
+        {% endif %}
     </nav>
     
     <div class="absolute bottom-4 left-4 right-4">

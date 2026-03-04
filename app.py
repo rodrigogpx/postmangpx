@@ -220,7 +220,60 @@ def update_system():
     except Exception as e:
         flash(f'Erro ao iniciar atualização: {str(e)}', 'error')
         
-    return redirect(url_for('dashboard'))
+    return redirect(url_for('settings'))
+
+
+@app.route('/settings')
+@login_required
+def settings():
+    if session.get('role') != 'admin':
+        flash('Acesso negado. Apenas administradores podem acessar as configurações.', 'error')
+        return redirect(url_for('dashboard'))
+        
+    users = User.query.all()
+    return render_template('settings.html', users=users)
+
+
+@app.route('/settings/users/create', methods=['POST'])
+@login_required
+def create_user():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Acesso negado'}), 403
+        
+    username = request.form.get('username')
+    password = request.form.get('password')
+    role = request.form.get('role', 'user')
+    
+    if User.query.filter_by(username=username).first():
+        flash('Nome de usuário já existe.', 'error')
+        return redirect(url_for('settings'))
+        
+    user = User(username=username, role=role)
+    user.set_password(password)
+    
+    db.session.add(user)
+    db.session.commit()
+    
+    flash(f'Usuário {username} criado com sucesso!', 'success')
+    return redirect(url_for('settings'))
+
+
+@app.route('/settings/users/<int:user_id>/delete', methods=['POST'])
+@login_required
+def delete_user(user_id):
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Acesso negado'}), 403
+        
+    if user_id == session.get('user_id'):
+        flash('Você não pode excluir seu próprio usuário.', 'error')
+        return redirect(url_for('settings'))
+        
+    user = User.query.get_or_404(user_id)
+    db.session.delete(user)
+    db.session.commit()
+    
+    flash('Usuário removido com sucesso.', 'success')
+    return redirect(url_for('settings'))
 
 
 @app.route('/api-keys')

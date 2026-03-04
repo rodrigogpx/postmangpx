@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Configurações - PostmanGPX{% endblock %}
+
+{% block body %}
+<div class="flex">
+    {% include "sidebar.html" %}
+    <main class="flex-1 ml-64 p-8">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-4 p-4 rounded-lg {% if category == 'error' %}bg-red-900/50 text-red-200{% else %}bg-green-900/50 text-green-200{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold">Configurações do Sistema</h1>
+            <p class="text-gray-400 mt-1">Administração de usuários e atualizações</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Users Administration -->
+            <div class="lg:col-span-2 space-y-6">
+                <div class="bg-gray-800 rounded-xl overflow-hidden">
+                    <div class="p-6 border-b border-gray-700 flex justify-between items-center">
+                        <h2 class="text-xl font-semibold"><i class="fas fa-users mr-2 text-indigo-400"></i>Gerenciamento de Usuários</h2>
+                    </div>
+                    
+                    <!-- Create User Form -->
+                    <div class="p-6 border-b border-gray-700 bg-gray-800/50">
+                        <form method="POST" action="{{ url_for('create_user') }}" class="flex flex-wrap gap-4 items-end">
+                            <div class="flex-1 min-w-[200px]">
+                                <label class="block text-sm font-medium text-gray-400 mb-1">Nome de Usuário</label>
+                                <input type="text" name="username" required
+                                    class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
+                            </div>
+                            <div class="flex-1 min-w-[200px]">
+                                <label class="block text-sm font-medium text-gray-400 mb-1">Senha</label>
+                                <input type="password" name="password" required
+                                    class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
+                            </div>
+                            <div class="w-32">
+                                <label class="block text-sm font-medium text-gray-400 mb-1">Função</label>
+                                <select name="role" class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
+                                    <option value="user">Usuário</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-semibold transition h-[42px]">
+                                <i class="fas fa-user-plus mr-2"></i>Criar
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Users List -->
+                    <table class="w-full">
+                        <thead>
+                            <tr class="text-left text-gray-400 text-sm bg-gray-700/50">
+                                <th class="px-6 py-4">ID</th>
+                                <th class="px-6 py-4">Usuário</th>
+                                <th class="px-6 py-4">Função</th>
+                                <th class="px-6 py-4">Último Login</th>
+                                <th class="px-6 py-4">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr class="border-t border-gray-700">
+                                <td class="px-6 py-4 text-gray-400">#{{ user.id }}</td>
+                                <td class="px-6 py-4 font-medium">
+                                    {{ user.username }}
+                                    {% if user.id == session.user_id %}
+                                    <span class="ml-2 text-xs bg-indigo-900/50 text-indigo-300 px-2 py-1 rounded">Você</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4">
+                                    {% if user.role == 'admin' %}
+                                    <span class="px-2 py-1 bg-purple-900/50 text-purple-300 rounded text-xs"><i class="fas fa-shield-alt mr-1"></i>Admin</span>
+                                    {% else %}
+                                    <span class="px-2 py-1 bg-gray-700 text-gray-300 rounded text-xs"><i class="fas fa-user mr-1"></i>User</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-400">
+                                    {{ user.last_login.strftime('%d/%m/%Y %H:%M') if user.last_login else 'Nunca' }}
+                                </td>
+                                <td class="px-6 py-4">
+                                    {% if user.id != session.user_id %}
+                                    <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}" 
+                                          onsubmit="return confirm('Tem certeza que deseja excluir o usuário {{ user.username }}?')">
+                                        <button type="submit" class="text-red-400 hover:text-red-300 p-2 rounded hover:bg-gray-700 transition" title="Excluir usuário">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- System Administration -->
+            <div class="space-y-6">
+                <div class="bg-gray-800 rounded-xl p-6">
+                    <h2 class="text-xl font-semibold mb-4 text-yellow-400"><i class="fas fa-sync-alt mr-2"></i>Atualização do Sistema</h2>
+                    <p class="text-sm text-gray-400 mb-6">
+                        Puxa a versão mais recente do GitHub (branch main), reconstrói os containers Docker e limpa imagens antigas. O sistema ficará indisponível por alguns instantes.
+                    </p>
+                    
+                    <form method="POST" action="{{ url_for('update_system') }}" onsubmit="return confirm('O sistema será atualizado e reiniciado. Continuar?')">
+                        <button type="submit" class="w-full px-4 py-3 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-bold shadow-lg transition flex justify-center items-center">
+                            <i class="fas fa-cloud-download-alt mr-2"></i> Executar Update.sh
+                        </button>
+                    </form>
+                </div>
+
+                <div class="bg-gray-800 rounded-xl p-6">
+                    <h2 class="text-xl font-semibold mb-4"><i class="fas fa-info-circle mr-2 text-blue-400"></i>Sobre o Sistema</h2>
+                    <ul class="space-y-3 text-sm text-gray-400">
+                        <li class="flex justify-between">
+                            <span>Versão do Python:</span>
+                            <span class="text-white">3.11+</span>
+                        </li>
+                        <li class="flex justify-between">
+                            <span>Framework:</span>
+                            <span class="text-white">Flask 3.0</span>
+                        </li>
+                        <li class="flex justify-between">
+                            <span>Banco de Dados:</span>
+                            <span class="text-white">SQLite</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </main>
+</div>
+{% endblock %}
