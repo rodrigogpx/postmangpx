@@ -20,8 +20,14 @@
         <p class="text-gray-400 mt-1">Gerencie suas chaves de API para integração</p>
     </div>
     <form method="POST" action="{{ url_for('create_api_key') }}" class="flex gap-2">
-        <input type="text" name="name" placeholder="Nome da chave" 
+        <input type="text" name="name" placeholder="Nome da chave" required
             class="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400">
+        <select name="provider_id" class="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white" required>
+            <option value="">Selecione um Provedor</option>
+            {% for provider in providers %}
+                <option value="{{ provider.id }}">{{ provider.name }} ({{ provider.provider_type }})</option>
+            {% endfor %}
+        </select>
         <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-semibold transition">
             <i class="fas fa-plus mr-2"></i>Nova API Key
         </button>
@@ -35,6 +41,7 @@
         <thead>
             <tr class="text-left text-gray-400 text-sm bg-gray-700/50">
                 <th class="px-6 py-4">Nome</th>
+                <th class="px-6 py-4">Provedor Associado</th>
                 <th class="px-6 py-4">Chave</th>
                 <th class="px-6 py-4">Status</th>
                 <th class="px-6 py-4">Último Uso</th>
@@ -46,6 +53,13 @@
             {% for key in api_keys %}
             <tr class="border-t border-gray-700">
                 <td class="px-6 py-4 font-medium">{{ key.name }}</td>
+                <td class="px-6 py-4 text-sm text-gray-300">
+                    {% if key.provider %}
+                        <span class="px-2 py-1 bg-gray-700 rounded"><i class="fas fa-server mr-1"></i>{{ key.provider.name }}</span>
+                    {% else %}
+                        <span class="text-gray-500 italic">Nenhum</span>
+                    {% endif %}
+                </td>
                 <td class="px-6 py-4">
                     <code class="bg-gray-700 px-2 py-1 rounded text-sm">{{ key.key_prefix }}</code>
                 </td>

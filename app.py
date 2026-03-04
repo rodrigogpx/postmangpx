@@ -204,6 +204,25 @@ def logout():
     return redirect(url_for('login'))
 
 
+@app.route('/update-system', methods=['POST'])
+@login_required
+def update_system():
+    if session.get('role') != 'admin':
+        flash('Apenas administradores podem atualizar o sistema.', 'error')
+        return redirect(url_for('dashboard'))
+        
+    try:
+        import subprocess
+        # Executa o script de atualização em background para não bloquear a requisição atual
+        # que seria derrubada quando o container reiniciar
+        subprocess.Popen(['bash', 'update.sh'], start_new_session=True)
+        flash('Atualização do sistema iniciada! O sistema será reiniciado em breve.', 'success')
+    except Exception as e:
+        flash(f'Erro ao iniciar atualização: {str(e)}', 'error')
+        
+    return redirect(url_for('dashboard'))
+
+
 @app.route('/api-keys')
 @login_required
 def api_keys():
@@ -216,6 +235,7 @@ def api_keys():
 @login_required
 def create_api_key():
     name = request.form.get('name', 'Nova API Key')
+    provider_id = request.form.get('provider_id')
     
     # Gerar chave
     raw_key = f"pmgpx_live_{secrets.token_hex(16)}"
@@ -225,6 +245,7 @@ def create_api_key():
     api_key = ApiKey(
         id=secrets.token_hex(18),
         user_id=session['user_id'],
+        provider_id=provider_id if provider_id else None,
         name=name,
         key_hash=key_hash,
         key_prefix=key_prefix
