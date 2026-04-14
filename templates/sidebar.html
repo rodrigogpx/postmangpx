@@ -22,6 +22,9 @@
         <a href="{{ url_for('list_templates') }}" class="flex items-center px-4 py-2 rounded-lg hover:bg-gray-700 {% if request.endpoint == 'list_templates' or request.endpoint == 'create_template' or request.endpoint == 'edit_template' %}bg-gray-700{% endif %}">
             <i class="fas fa-file-code w-5 mr-3"></i>Templates
         </a>
+        <a href="{{ url_for('analytics_dashboard') }}" class="flex items-center px-4 py-2 rounded-lg hover:bg-gray-700 {% if request.endpoint == 'analytics_dashboard' %}bg-gray-700{% endif %}">
+            <i class="fas fa-chart-line w-5 mr-3"></i>Analytics
+        </a>
         {% if session.role == 'admin' %}
         <a href="{{ url_for('settings') }}" class="flex items-center px-4 py-2 rounded-lg hover:bg-gray-700 {% if request.endpoint == 'settings' %}bg-gray-700{% endif %}">
             <i class="fas fa-cog w-5 mr-3"></i>Configurações

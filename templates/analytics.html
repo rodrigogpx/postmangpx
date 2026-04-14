@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}Analytics - PostmanGPX{% endblock %}
+
+{% block body %}
+<div class="flex">
+    {% include "sidebar.html" %}
+    <main class="flex-1 ml-64 p-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold">Analytics</h1>
+            <p class="text-gray-400 mt-1">Estatísticas de envio e engajamento</p>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <!-- Total Emails -->
+            <div class="bg-gray-800 rounded-xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">Total de Emails</p>
+                        <p class="text-3xl font-bold mt-1">{{ stats.total }}</p>
+                    </div>
+                    <div class="w-12 h-12 bg-blue-900/50 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-envelope text-blue-400 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delivered -->
+            <div class="bg-gray-800 rounded-xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">Taxa de Entrega</p>
+                        <p class="text-3xl font-bold mt-1 text-green-400">{{ stats.delivery_rate }}%</p>
+                    </div>
+                    <div class="w-12 h-12 bg-green-900/50 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-check-circle text-green-400 text-xl"></i>
+                    </div>
+                </div>
+                <p class="text-gray-500 text-sm mt-2">{{ stats.delivered }} entregues</p>
+            </div>
+
+            <!-- Opened -->
+            <div class="bg-gray-800 rounded-xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">Taxa de Abertura</p>
+                        <p class="text-3xl font-bold mt-1 text-blue-400">{{ stats.open_rate }}%</p>
+                    </div>
+                    <div class="w-12 h-12 bg-blue-900/50 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-eye text-blue-400 text-xl"></i>
+                    </div>
+                </div>
+                <p class="text-gray-500 text-sm mt-2">{{ stats.opened }} abertos</p>
+            </div>
+
+            <!-- Clicked -->
+            <div class="bg-gray-800 rounded-xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">Taxa de Clique</p>
+                        <p class="text-3xl font-bold mt-1 text-purple-400">{{ stats.click_rate }}%</p>
+                    </div>
+                    <div class="w-12 h-12 bg-purple-900/50 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-mouse-pointer text-purple-400 text-xl"></i>
+                    </div>
+                </div>
+                <p class="text-gray-500 text-sm mt-2">{{ stats.clicked }} cliques</p>
+            </div>
+        </div>
+
+        <!-- Secondary Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <!-- Bounce Rate -->
+            <div class="bg-gray-800 rounded-xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">Taxa de Bounce</p>
+                        <p class="text-2xl font-bold mt-1 {% if stats.bounce_rate > 5 %}text-red-400{% else %}text-green-400{% endif %}">
+                            {{ stats.bounce_rate }}%
+                        </p>
+                    </div>
+                    <div class="w-10 h-10 {% if stats.bounce_rate > 5 %}bg-red-900/50{% else %}bg-green-900/50{% endif %} rounded-lg flex items-center justify-center">
+                        <i class="fas fa-exclamation-triangle {% if stats.bounce_rate > 5 %}text-red-400{% else %}text-green-400{% endif %}"></i>
+                    </div>
+                </div>
+                <p class="text-gray-500 text-sm mt-2">{{ stats.failed }} falhas</p>
+            </div>
+
+            <!-- Sent -->
+            <div class="bg-gray-800 rounded-xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">Emails Enviados</p>
+                        <p class="text-2xl font-bold mt-1">{{ stats.sent }}</p>
+                    </div>
+                    <div class="w-10 h-10 bg-indigo-900/50 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-paper-plane text-indigo-400"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Engagement Score -->
+            <div class="bg-gray-800 rounded-xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">Score de Engajamento</p>
+                        <p class="text-2xl font-bold mt-1 text-yellow-400">
+                            {% if stats.opened > 0 %}
+                                {{ ((stats.clicked / stats.opened) * 100)|round|int }}%
+                            {% else %}
+                                0%
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="w-10 h-10 bg-yellow-900/50 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-star text-yellow-400"></i>
+                    </div>
+                </div>
+                <p class="text-gray-500 text-sm mt-2">Cliques / Aberturas</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Top API Keys -->
+            <div class="bg-gray-800 rounded-xl p-6">
+                <h2 class="text-xl font-semibold mb-4">Top API Keys</h2>
+                {% if top_api_keys %}
+                <div class="space-y-3">
+                    {% for api_key in top_api_keys %}
+                    <div class="flex items-center justify-between bg-gray-700/50 rounded-lg p-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 bg-indigo-900/50 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-key text-indigo-400 text-sm"></i>
+                            </div>
+                            <span class="font-medium">{{ api_key.name }}</span>
+                        </div>
+                        <span class="text-indigo-400 font-semibold">{{ api_key.email_count }} emails</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-gray-500 text-center py-4">Nenhum dado disponível</p>
+                {% endif %}
+            </div>
+
+            <!-- Recent Emails -->
+            <div class="bg-gray-800 rounded-xl p-6">
+                <h2 class="text-xl font-semibold mb-4">Emails Recentes</h2>
+                {% if recent_emails %}
+                <div class="space-y-3">
+                    {% for email in recent_emails %}
+                    <a href="{{ url_for('email_details', email_id=email.id) }}" class="flex items-center justify-between bg-gray-700/50 rounded-lg p-3 hover:bg-gray-700 transition">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg flex items-center justify-center
+                                {% if email.status == 'delivered' %}bg-green-900/50{% elif email.status == 'sent' %}bg-blue-900/50{% elif email.status in ['failed', 'bounced'] %}bg-red-900/50{% else %}bg-yellow-900/50{% endif %}">
+                                <i class="fas {% if email.status == 'delivered' %}fa-check{% elif email.status == 'sent' %}fa-paper-plane{% elif email.status in ['failed', 'bounced'] %}fa-exclamation{% else %}fa-clock{% endif %} 
+                                    {% if email.status == 'delivered' %}text-green-400{% elif email.status == 'sent' %}text-blue-400{% elif email.status in ['failed', 'bounced'] %}text-red-400{% else %}text-yellow-400{% endif %} text-sm"></i>
+                            </div>
+                            <div>
+                                <span class="font-medium block truncate max-w-xs">{{ email.subject }}</span>
+                                <span class="text-gray-500 text-xs">{{ email.to_address }}</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            {% if email.opened_at %}
+                            <span class="text-blue-400 text-xs block"><i class="fas fa-eye mr-1"></i>Aberto</span>
+                            {% endif %}
+                            {% if email.clicked_at %}
+                            <span class="text-purple-400 text-xs block"><i class="fas fa-mouse-pointer mr-1"></i>Clique</span>
+                            {% endif %}
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-gray-500 text-center py-4">Nenhum email enviado ainda</p>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}

@@ -784,6 +784,183 @@ def preview_template(template_id):
 
 
 # ============================================
+# Analytics Routes
+# ============================================
+
+@app.route('/analytics')
+@login_required
+def analytics_dashboard():
+    """Dashboard de analytics com estatísticas de emails"""
+    user_id = session['user_id']
+
+    # Período padrão: últimos 30 dias
+    from datetime import timedelta
+    end_date = datetime.utcnow()
+    start_date = end_date - timedelta(days=30)
+
+    # Estatísticas gerais
+    total_emails = Email.query.filter(
+        Email.api_key_id.in_(
+            db.session.query(ApiKey.id).filter_by(user_id=user_id)
+        )
+    ).count()
+
+    sent_emails = Email.query.filter(
+        Email.api_key_id.in_(
+            db.session.query(ApiKey.id).filter_by(user_id=user_id)
+        ),
+        Email.status == 'sent'
+    ).count()
+
+    delivered_emails = Email.query.filter(
+        Email.api_key_id.in_(
+            db.session.query(ApiKey.id).filter_by(user_id=user_id)
+        ),
+        Email.status == 'delivered'
+    ).count()
+
+    failed_emails = Email.query.filter(
+        Email.api_key_id.in_(
+            db.session.query(ApiKey.id).filter_by(user_id=user_id)
+        ),
+        Email.status.in_(['failed', 'bounced'])
+    ).count()
+
+    opened_emails = Email.query.filter(
+        Email.api_key_id.in_(
+            db.session.query(ApiKey.id).filter_by(user_id=user_id)
+        ),
+        Email.opened_at.isnot(None)
+    ).count()
+
+    clicked_emails = Email.query.filter(
+        Email.api_key_id.in_(
+            db.session.query(ApiKey.id).filter_by(user_id=user_id)
+        ),
+        Email.clicked_at.isnot(None)
+    ).count()
+
+    # Taxas
+    delivery_rate = (delivered_emails / sent_emails * 100) if sent_emails > 0 else 0
+    open_rate = (opened_emails / delivered_emails * 100) if delivered_emails > 0 else 0
+    click_rate = (clicked_emails / delivered_emails * 100) if delivered_emails > 0 else 0
+    bounce_rate = (failed_emails / total_emails * 100) if total_emails > 0 else 0
+
+    # Top templates usados (se houver templates vinculados)
+    # Como não temos vínculo direto, vamos mostrar emails por API key
+    top_api_keys = db.session.query(
+        ApiKey.name,
+        db.func.count(Email.id).label('email_count')
+    ).join(Email, Email.api_key_id == ApiKey.id).filter(
+        ApiKey.user_id == user_id
+    ).group_by(ApiKey.id).order_by(db.desc('email_count')).limit(5).all()
+
+    # Emails recentes com eventos
+    recent_emails = Email.query.filter(
+        Email.api_key_id.in_(
+            db.session.query(ApiKey.id).filter_by(user_id=user_id)
+        )
+    ).order_by(Email.created_at.desc()).limit(10).all()
+
+    stats = {
+        'total': total_emails,
+        'sent': sent_emails,
+        'delivered': delivered_emails,
+        'failed': failed_emails,
+        'opened': opened_emails,
+        'clicked': clicked_emails,
+        'delivery_rate': round(delivery_rate, 1),
+        'open_rate': round(open_rate, 1),
+        'click_rate': round(click_rate, 1),
+        'bounce_rate': round(bounce_rate, 1)
+    }
+
+    return render_template('analytics.html',
+                         stats=stats,
+                         top_api_keys=top_api_keys,
+                         recent_emails=recent_emails)
+
+
+@app.route('/api/v1/analytics', methods=['GET'])
+@api_key_required
+def api_analytics():
+    """API para obter estatísticas de analytics"""
+    from datetime import timedelta
+
+    # Período (padrão: últimos 30 dias)
+    days = request.args.get('days', 30, type=int)
+    end_date = datetime.utcnow()
+    start_date = end_date - timedelta(days=days)
+
+    user_id = request.api_key.user_id
+
+    # Estatísticas
+    total = Email.query.filter(
+        Email.api_key_id.in_(
+            db.session.query(ApiKey.id).filter_by(user_id=user_id)
+        ),
+        Email.created_at >= start_date
+    ).count()
+
+    sent = Email.query.filter(
+        Email.api_key_id.in_(
+            db.session.query(ApiKey.id).filter_by(user_id=user_id)
+        ),
+        Email.status == 'sent',
+        Email.created_at >= start_date
+    ).count()
+
+    delivered = Email.query.filter(
+        Email.api_key_id.in_(
+            db.session.query(ApiKey.id).filter_by(user_id=user_id)
+        ),
+        Email.status == 'delivered',
+        Email.created_at >= start_date
+    ).count()
+
+    opened = Email.query.filter(
+        Email.api_key_id.in_(
+            db.session.query(ApiKey.id).filter_by(user_id=user_id)
+        ),
+        Email.opened_at.isnot(None),
+        Email.created_at >= start_date
+    ).count()
+
+    clicked = Email.query.filter(
+        Email.api_key_id.in_(
+            db.session.query(ApiKey.id).filter_by(user_id=user_id)
+        ),
+        Email.clicked_at.isnot(None),
+        Email.created_at >= start_date
+    ).count()
+
+    bounced = Email.query.filter(
+        Email.api_key_id.in_(
+            db.session.query(ApiKey.id).filter_by(user_id=user_id)
+        ),
+        Email.status.in_(['failed', 'bounced']),
+        Email.created_at >= start_date
+    ).count()
+
+    return jsonify({
+        'success': True,
+        'period_days': days,
+        'stats': {
+            'total': total,
+            'sent': sent,
+            'delivered': delivered,
+            'opened': opened,
+            'clicked': clicked,
+            'bounced': bounced,
+            'delivery_rate': round(delivered / sent * 100, 2) if sent > 0 else 0,
+            'open_rate': round(opened / delivered * 100, 2) if delivered > 0 else 0,
+            'click_rate': round(clicked / delivered * 100, 2) if delivered > 0 else 0,
+            'bounce_rate': round(bounced / total * 100, 2) if total > 0 else 0
+        }
+    })
+
+
+# ============================================
 # API Routes
 # ============================================
 
