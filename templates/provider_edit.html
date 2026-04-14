@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}{% if edit_mode %}Editar{% else %}Novo{% endif %} Provedor SMTP - PostmanGPX{% endblock %}
+
+{% block body %}
+<div class="flex">
+    {% include "sidebar.html" %}
+    <main class="flex-1 ml-64 p-8">
+        <div class="max-w-2xl">
+            <div class="mb-8">
+                <a href="{{ url_for('providers') }}" class="text-gray-400 hover:text-white text-sm">
+                    <i class="fas fa-arrow-left mr-2"></i>Voltar para provedores
+                </a>
+                <h1 class="text-3xl font-bold mt-4">
+                    {% if edit_mode %}Editar Provedor{% else %}Novo Provedor SMTP{% endif %}
+                </h1>
+                <p class="text-gray-400 mt-1">
+                    {% if edit_mode %}Atualize as configurações do provedor SMTP.{% else %}Configure um servidor SMTP para envio de e-mails.{% endif %}
+                </p>
+            </div>
+
+            <form method="POST" class="bg-gray-800 rounded-xl p-6 space-y-6">
+                <!-- Nome -->
+                <div>
+                    <label class="block text-sm font-medium mb-2">Nome do Provedor</label>
+                    <input type="text" name="name" required
+                        value="{{ provider.name if provider else '' }}"
+                        class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-indigo-500 focus:outline-none"
+                        placeholder="Ex: Gmail Empresarial">
+                </div>
+
+                <!-- Tipo -->
+                <div>
+                    <label class="block text-sm font-medium mb-2">Tipo</label>
+                    <select name="provider_type" required
+                        class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-indigo-500 focus:outline-none">
+                        <option value="smtp" {% if provider and provider.provider_type == 'smtp' %}selected{% endif %}>SMTP Genérico</option>
+                        <option value="gmail" {% if provider and provider.provider_type == 'gmail' %}selected{% endif %}>Gmail</option>
+                        <option value="outlook" {% if provider and provider.provider_type == 'outlook' %}selected{% endif %}>Outlook</option>
+                        <option value="sendgrid" {% if provider and provider.provider_type == 'sendgrid' %}selected{% endif %}>SendGrid</option>
+                        <option value="mailgun" {% if provider and provider.provider_type == 'mailgun' %}selected{% endif %}>Mailgun</option>
+                        <option value="ses" {% if provider and provider.provider_type == 'ses' %}selected{% endif %}>Amazon SES</option>
+                    </select>
+                </div>
+
+                <!-- Host -->
+                <div>
+                    <label class="block text-sm font-medium mb-2">Host SMTP</label>
+                    <input type="text" name="host" required
+                        value="{{ provider.host if provider else '' }}"
+                        class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-indigo-500 focus:outline-none"
+                        placeholder="Ex: smtp.gmail.com">
+                </div>
+
+                <!-- Porta -->
+                <div>
+                    <label class="block text-sm font-medium mb-2">Porta</label>
+                    <input type="number" name="port" required
+                        value="{{ provider.port if provider else '587' }}"
+                        class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-indigo-500 focus:outline-none"
+                        placeholder="587">
+                    <p class="text-gray-500 text-sm mt-1">Portas comuns: 587 (TLS), 465 (SSL), 25 (sem TLS)</p>
+                </div>
+
+                <!-- Username -->
+                <div>
+                    <label class="block text-sm font-medium mb-2">Usuário / Email</label>
+                    <input type="text" name="username" required
+                        value="{{ provider.username if provider else '' }}"
+                        class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-indigo-500 focus:outline-none"
+                        placeholder="seu@email.com">
+                </div>
+
+                <!-- Password -->
+                <div>
+                    <label class="block text-sm font-medium mb-2">
+                        Senha {% if edit_mode %}<span class="text-gray-500">(deixe em branco para manter a atual)</span>{% endif %}
+                    </label>
+                    <input type="password" name="password" {% if not edit_mode %}required{% endif %}
+                        class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-indigo-500 focus:outline-none"
+                        placeholder="{% if edit_mode %}••••••••{% else %}Senha ou app password{% endif %}">
+                </div>
+
+                <!-- TLS -->
+                <div class="flex items-center gap-3">
+                    <input type="checkbox" name="use_tls" id="use_tls"
+                        {% if not provider or provider.use_tls %}checked{% endif %}
+                        class="w-5 h-5 bg-gray-700 border border-gray-600 rounded">
+                    <label for="use_tls" class="text-sm">Usar TLS (recomendado)</label>
+                </div>
+
+                <!-- Status (apenas em edição) -->
+                {% if edit_mode %}
+                <div class="flex items-center gap-3">
+                    <input type="checkbox" name="is_active" id="is_active"
+                        {% if provider.is_active %}checked{% endif %}
+                        class="w-5 h-5 bg-gray-700 border border-gray-600 rounded">
+                    <label for="is_active" class="text-sm">Provedor ativo</label>
+                </div>
+                {% endif %}
+
+                <!-- Submit -->
+                <div class="flex gap-4 pt-4">
+                    <button type="submit"
+                        class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-semibold transition">
+                        {% if edit_mode %}Salvar Alterações{% else %}Criar Provedor{% endif %}
+                    </button>
+                    <a href="{{ url_for('providers') }}"
+                        class="px-6 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg font-semibold transition">
+                        Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </main>
+</div>
+{% endblock %}

@@ -47,6 +47,9 @@
                 </td>
                 <td class="px-6 py-4">
                     <div class="flex items-center gap-3">
+                        <a href="{{ url_for('edit_provider', provider_id=provider.id) }}" class="text-blue-400 hover:text-blue-300">
+                            <i class="fas fa-edit"></i>
+                        </a>
                         <form method="POST" action="{{ url_for('test_provider', provider_id=provider.id) }}" class="flex items-center gap-2">
                             <input type="email" name="test_to" required
                                 class="w-56 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
@@ -55,7 +58,7 @@
                                 <i class="fas fa-paper-plane mr-2"></i>Testar
                             </button>
                         </form>
-                        <form method="POST" action="{{ url_for('delete_provider', provider_id=provider.id) }}" 
+                        <form method="POST" action="{{ url_for('delete_provider', provider_id=provider.id) }}"
                               onsubmit="return confirm('Tem certeza que deseja excluir este provedor?')">
                             <button type="submit" class="text-red-400 hover:text-red-300">
                                 <i class="fas fa-trash"></i>

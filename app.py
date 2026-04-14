@@ -340,9 +340,9 @@ def set_api_key_provider(key_id):
     provider_id = request.form.get('provider_id')
 
     if provider_id:
-        provider = SmtpProvider.query.filter_by(id=provider_id, user_id=session['user_id']).first()
+        provider = SmtpProvider.query.filter_by(id=provider_id, user_id=session['user_id'], is_active=True).first()
         if not provider:
-            flash('Provedor inválido.', 'error')
+            flash('Provedor inválido ou inativo.', 'error')
             return redirect(url_for('api_keys'))
         key.provider_id = provider.id
     else:
@@ -380,7 +380,31 @@ def create_provider():
         flash('Provedor SMTP criado com sucesso!', 'success')
         return redirect(url_for('providers'))
     
-    return render_template('provider_form.html')
+    return render_template('provider_edit.html', provider=None, edit_mode=False)
+
+
+@app.route('/providers/<provider_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_provider(provider_id):
+    provider = SmtpProvider.query.filter_by(id=provider_id, user_id=session['user_id']).first_or_404()
+
+    if request.method == 'POST':
+        provider.name = request.form.get('name')
+        provider.provider_type = request.form.get('provider_type')
+        provider.host = request.form.get('host')
+        provider.port = int(request.form.get('port', 587))
+        provider.username = request.form.get('username')
+        # So atualiza senha se foi fornecida
+        if request.form.get('password'):
+            provider.password = request.form.get('password')
+        provider.use_tls = request.form.get('use_tls') == 'on'
+        provider.is_active = request.form.get('is_active') == 'on'
+
+        db.session.commit()
+        flash('Provedor SMTP atualizado com sucesso!', 'success')
+        return redirect(url_for('providers'))
+
+    return render_template('provider_edit.html', provider=provider, edit_mode=True)
 
 
 @app.route('/providers/<provider_id>/delete', methods=['POST'])
@@ -589,19 +613,37 @@ def api_send_email():
     db.session.commit()
 
     provider = None
+    provider_source = None
+
     if getattr(request.api_key, 'provider_id', None):
+        # API Key TEM provider designado -> OBRIGATORIO usar esse provider
         provider = SmtpProvider.query.filter_by(
             id=request.api_key.provider_id,
             user_id=request.api_key.user_id,
             is_active=True,
         ).first()
-    if not provider:
+
+        if not provider:
+            email.status = 'failed'
+            email.failure_reason = f'Provider {request.api_key.provider_id} not found or inactive for this API key'
+            db.session.commit()
+            return jsonify({
+                'error': 'Configured provider not available',
+                'provider_id': request.api_key.provider_id,
+                'message': 'This API key is tied to a specific provider that is currently unavailable. '
+                           'Please check provider status or use an API key without provider restriction.'
+            }), 400
+
+        provider_source = 'api_key_configured'
+    else:
+        # API Key NAO TEM provider designado -> usar qualquer provider ativo do usuario
         provider = _get_active_provider(request.api_key.user_id)
-    if not provider:
-        email.status = 'failed'
-        email.failure_reason = 'No active SMTP provider configured'
-        db.session.commit()
-        return jsonify({'error': 'No active SMTP provider configured'}), 400
+        if not provider:
+            email.status = 'failed'
+            email.failure_reason = 'No active SMTP provider configured'
+            db.session.commit()
+            return jsonify({'error': 'No active SMTP provider configured'}), 400
+        provider_source = 'user_default'
 
     email.provider_id = provider.id
     db.session.commit()
@@ -754,9 +796,9 @@ def api_set_api_key_provider(key_id):
         return jsonify({'error': 'API Key not found'}), 404
 
     if provider_id:
-        provider = SmtpProvider.query.filter_by(id=provider_id, user_id=session['user_id']).first()
+        provider = SmtpProvider.query.filter_by(id=provider_id, user_id=session['user_id'], is_active=True).first()
         if not provider:
-            return jsonify({'error': 'Provider not found'}), 404
+            return jsonify({'error': 'Provider not found or inactive'}), 400
         key.provider_id = provider.id
     else:
         key.provider_id = None
