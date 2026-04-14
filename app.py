@@ -104,8 +104,31 @@ class Email(db.Model):
     external_id = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # Tracking columns
+    opened_at = db.Column(db.DateTime)
+    clicked_at = db.Column(db.DateTime)
+    open_count = db.Column(db.Integer, default=0)
+    click_count = db.Column(db.Integer, default=0)
+    tracking_enabled = db.Column(db.Boolean, default=True)
+    tracking_token = db.Column(db.String(64), unique=True)  # Token único para tracking
+
     api_key = db.relationship('ApiKey', backref=db.backref('emails', lazy=True))
     provider = db.relationship('SmtpProvider', backref=db.backref('emails', lazy=True))
+
+
+class EmailEvent(db.Model):
+    __tablename__ = 'email_events'
+    id = db.Column(db.String(36), primary_key=True)
+    email_id = db.Column(db.String(36), db.ForeignKey('emails.id'), nullable=False)
+    event_type = db.Column(db.String(50), nullable=False)  # delivered, bounced, opened, clicked, complained, etc
+    provider = db.Column(db.String(50))  # SES, SendGrid, Mailgun, etc
+    ip_address = db.Column(db.String(45))  # IP do usuário (para opened/clicked)
+    user_agent = db.Column(db.Text)  # User agent (para opened/clicked)
+    link_url = db.Column(db.Text)  # URL clicada (para clicked)
+    metadata = db.Column(db.Text)  # JSON com dados extras do evento
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    email = db.relationship('Email', backref=db.backref('events', lazy=True, order_by='EmailEvent.created_at.desc()'))
 
 
 # ============================================
@@ -469,6 +492,53 @@ def _extract_email(value: str | None):
     return addr or None
 
 
+def _inject_tracking(html_content: str, token: str) -> str:
+    """Injeta pixel de tracking e substitui links no HTML"""
+    import re
+    from urllib.parse import quote
+
+    if not html_content:
+        return html_content
+
+    # URL base para tracking (deve ser configurável via env)
+    tracking_base = os.environ.get('TRACKING_BASE_URL', 'http://localhost:3000')
+
+    # 1. Injetar pixel de abertura (1x1 transparente GIF)
+    pixel_url = f"{tracking_base}/track/open/{token}"
+    pixel_img = f'<img src="{pixel_url}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;" />'
+
+    # Tentar injetar antes do </body> ou </html>, ou no final
+    if '</body>' in html_content:
+        html_content = html_content.replace('</body>', f'{pixel_img}</body>')
+    elif '</html>' in html_content:
+        html_content = html_content.replace('</html>', f'{pixel_img}</html>')
+    else:
+        html_content = html_content + pixel_img
+
+    # 2. Substituir links por proxy de tracking
+    # Padrão: href="URL" ou href='URL'
+    def replace_link(match):
+        full_match = match.group(0)
+        url = match.group(1) or match.group(2)  # Captura de aspas duplas ou simples
+
+        # Não substituir links internos (tel:, mailto:, #, javascript:)
+        if url.startswith(('tel:', 'mailto:', '#', 'javascript:', 'data:')):
+            return full_match
+
+        # Criar URL de tracking
+        tracking_url = f"{tracking_base}/track/click/{token}?url={quote(url, safe='')}"  # noqa: E501
+        return full_match.replace(url, tracking_url)
+
+    # Regex para capturar href="URL" ou href='URL'
+    html_content = re.sub(
+        r'href=["\']([^"\']+)["\']',
+        replace_link,
+        html_content
+    )
+
+    return html_content
+
+
 def _smtp_send(
     provider: SmtpProvider,
     from_address: str,
@@ -646,6 +716,9 @@ def api_send_email():
         provider_source = 'user_default'
 
     email.provider_id = provider.id
+
+    # Gerar token de tracking
+    email.tracking_token = secrets.token_hex(32)
     db.session.commit()
 
     try:
@@ -670,12 +743,17 @@ def api_send_email():
             from_address = requested_from or provider.username or email.to_address
             reply_to = _extract_email(requested_reply_to)
 
+        # Processar HTML para tracking (se habilitado)
+        html_content = email.html_content
+        if html_content and email.tracking_enabled:
+            html_content = _inject_tracking(html_content, email.tracking_token)
+
         refused, log = _smtp_send(
             provider=provider,
             from_address=from_address,
             to_address=email.to_address,
             subject=email.subject,
-            html=email.html_content,
+            html=html_content,
             text_content=email.text_content,
             reply_to=reply_to,
             cc=email.cc,
@@ -785,6 +863,210 @@ def health():
     return jsonify({'status': 'ok', 'timestamp': datetime.utcnow().isoformat()})
 
 
+# ============================================
+# Tracking Routes (Pixel + Click)
+# ============================================
+
+@app.route('/track/open/<token>')
+def track_open(token):
+    """Tracking pixel - registra abertura de email"""
+    email = Email.query.filter_by(tracking_token=token).first()
+
+    if email and email.tracking_enabled:
+        # Atualizar estatísticas
+        email.open_count += 1
+        if not email.opened_at:
+            email.opened_at = datetime.utcnow()
+
+        # Registrar evento
+        event = EmailEvent(
+            id=secrets.token_hex(18),
+            email_id=email.id,
+            event_type='opened',
+            ip_address=request.remote_addr,
+            user_agent=request.user_agent.string if request.user_agent else None
+        )
+        db.session.add(event)
+        db.session.commit()
+
+    # Retornar pixel 1x1 transparente GIF
+    pixel = base64.b64decode('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7')
+    return pixel, 200, {'Content-Type': 'image/gif', 'Cache-Control': 'no-cache, no-store, must-revalidate'}
+
+
+@app.route('/track/click/<token>')
+def track_click(token):
+    """Redireciona e registra clique em link"""
+    url = request.args.get('url')
+
+    email = Email.query.filter_by(tracking_token=token).first()
+
+    if email and email.tracking_enabled:
+        # Atualizar estatísticas
+        email.click_count += 1
+        if not email.clicked_at:
+            email.clicked_at = datetime.utcnow()
+
+        # Registrar evento
+        event = EmailEvent(
+            id=secrets.token_hex(18),
+            email_id=email.id,
+            event_type='clicked',
+            link_url=url,
+            ip_address=request.remote_addr,
+            user_agent=request.user_agent.string if request.user_agent else None
+        )
+        db.session.add(event)
+        db.session.commit()
+
+    # Redirecionar para URL original ou página de erro
+    if url:
+        return redirect(url)
+    return 'Link não encontrado', 404
+
+
+# ============================================
+# Webhook Routes (Provider callbacks)
+# ============================================
+
+@app.route('/webhooks/ses', methods=['POST'])
+def webhook_ses():
+    """Recebe callbacks do Amazon SES"""
+    data = request.get_json(force=True, silent=True) or {}
+
+    # SES envia notificações SNS que precisam ser processadas
+    # ou diretamente via HTTP POST em configurações de eventos
+    if 'Message' in data:  # Formato SNS
+        import json
+        try:
+            message = json.loads(data['Message'])
+            event_type = message.get('eventType') or message.get('notificationType')
+            message_id = message.get('mail', {}).get('messageId')
+        except:
+            return jsonify({'error': 'Invalid SNS message'}), 400
+    else:  # Formato direto
+        event_type = data.get('eventType')
+        message_id = data.get('mail', {}).get('messageId')
+
+    if not message_id:
+        return jsonify({'error': 'MessageId required'}), 400
+
+    # Buscar email pelo external_id (MessageId do SES)
+    email = Email.query.filter_by(external_id=message_id).first()
+    if not email:
+        return jsonify({'error': 'Email not found'}), 404
+
+    # Mapear evento SES para nosso formato
+    event_mapping = {
+        'send': 'sent',
+        'delivery': 'delivered',
+        'bounce': 'bounced',
+        'complaint': 'complained',
+        'reject': 'rejected'
+    }
+
+    mapped_event = event_mapping.get(event_type, event_type)
+
+    # Atualizar email
+    if mapped_event == 'delivered':
+        email.status = 'delivered'
+        email.delivery_status = 'delivered'
+        email.delivered_at = datetime.utcnow()
+    elif mapped_event == 'bounced':
+        email.status = 'bounced'
+        email.delivery_status = 'bounced'
+        email.failure_reason = data.get('bounce', {}).get('bounceType', 'Bounce')
+    elif mapped_event == 'complained':
+        email.delivery_status = 'complained'
+
+    # Registrar evento
+    event = EmailEvent(
+        id=secrets.token_hex(18),
+        email_id=email.id,
+        event_type=mapped_event,
+        provider='ses',
+        metadata=str(data)
+    )
+    db.session.add(event)
+    db.session.commit()
+
+    return jsonify({'success': True}), 200
+
+
+@app.route('/webhooks/sendgrid', methods=['POST'])
+def webhook_sendgrid():
+    """Recebe callbacks do SendGrid"""
+    data = request.get_json(force=True, silent=True) or []
+
+    # SendGrid envia array de eventos
+    if not isinstance(data, list):
+        data = [data]
+
+    processed = 0
+    for event_data in data:
+        event_type = event_data.get('event')
+        message_id = event_data.get('smtp-id') or event_data.get('sg_message_id')
+
+        if not message_id:
+            continue
+
+        # Buscar email (SendGrid sg_message_id precisa ser extraído)
+        email = Email.query.filter(
+            db.or_(
+                Email.external_id == message_id,
+                Email.delivery_response.contains(message_id)
+            )
+        ).first()
+
+        if not email:
+            continue
+
+        # Mapear evento SendGrid
+        event_mapping = {
+            'delivered': 'delivered',
+            'bounce': 'bounced',
+            'dropped': 'rejected',
+            'deferred': 'delayed',
+            'processed': 'sent',
+            'open': 'opened',
+            'click': 'clicked',
+            'spamreport': 'complained',
+            'unsubscribe': 'unsubscribed'
+        }
+
+        mapped_event = event_mapping.get(event_type, event_type)
+
+        # Atualizar email
+        if mapped_event == 'delivered':
+            email.status = 'delivered'
+            email.delivery_status = 'delivered'
+            email.delivered_at = datetime.utcnow()
+        elif mapped_event == 'bounced':
+            email.status = 'bounced'
+            email.delivery_status = 'bounced'
+            email.failure_reason = event_data.get('reason', 'Bounce')
+        elif mapped_event == 'opened' and not email.opened_at:
+            email.opened_at = datetime.utcnow()
+            email.open_count += 1
+        elif mapped_event == 'clicked' and not email.clicked_at:
+            email.clicked_at = datetime.utcnow()
+            email.click_count += 1
+
+        # Registrar evento
+        event = EmailEvent(
+            id=secrets.token_hex(18),
+            email_id=email.id,
+            event_type=mapped_event,
+            provider='sendgrid',
+            metadata=str(event_data)
+        )
+        db.session.add(event)
+        processed += 1
+
+    db.session.commit()
+    return jsonify({'success': True, 'processed': processed}), 200
+
+
 @app.route('/api/v1/api-keys/<key_id>/provider', methods=['PUT'])
 @login_required
 def api_set_api_key_provider(key_id):
@@ -833,6 +1115,19 @@ def init_db():
                         conn.execute(text('ALTER TABLE emails ADD COLUMN delivery_status VARCHAR(50)'))
                     if 'delivery_response' not in columns:
                         conn.execute(text('ALTER TABLE emails ADD COLUMN delivery_response TEXT'))
+                    # Tracking columns
+                    if 'opened_at' not in columns:
+                        conn.execute(text('ALTER TABLE emails ADD COLUMN opened_at DATETIME'))
+                    if 'clicked_at' not in columns:
+                        conn.execute(text('ALTER TABLE emails ADD COLUMN clicked_at DATETIME'))
+                    if 'open_count' not in columns:
+                        conn.execute(text('ALTER TABLE emails ADD COLUMN open_count INTEGER DEFAULT 0'))
+                    if 'click_count' not in columns:
+                        conn.execute(text('ALTER TABLE emails ADD COLUMN click_count INTEGER DEFAULT 0'))
+                    if 'tracking_enabled' not in columns:
+                        conn.execute(text('ALTER TABLE emails ADD COLUMN tracking_enabled BOOLEAN DEFAULT 1'))
+                    if 'tracking_token' not in columns:
+                        conn.execute(text('ALTER TABLE emails ADD COLUMN tracking_token VARCHAR(64)'))
                     conn.commit()
         except Exception:
             pass
