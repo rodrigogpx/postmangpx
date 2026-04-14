@@ -125,7 +125,7 @@ class EmailEvent(db.Model):
     ip_address = db.Column(db.String(45))  # IP do usuário (para opened/clicked)
     user_agent = db.Column(db.Text)  # User agent (para opened/clicked)
     link_url = db.Column(db.Text)  # URL clicada (para clicked)
-    metadata = db.Column(db.Text)  # JSON com dados extras do evento
+    event_metadata = db.Column(db.Text)  # JSON com dados extras do evento (renomeado de metadata)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     email = db.relationship('Email', backref=db.backref('events', lazy=True, order_by='EmailEvent.created_at.desc()'))
@@ -985,7 +985,7 @@ def webhook_ses():
         email_id=email.id,
         event_type=mapped_event,
         provider='ses',
-        metadata=str(data)
+        event_metadata=str(data)
     )
     db.session.add(event)
     db.session.commit()
@@ -1058,7 +1058,7 @@ def webhook_sendgrid():
             email_id=email.id,
             event_type=mapped_event,
             provider='sendgrid',
-            metadata=str(event_data)
+            event_metadata=str(event_data)
         )
         db.session.add(event)
         processed += 1
