@@ -131,6 +131,22 @@ class EmailEvent(db.Model):
     email = db.relationship('Email', backref=db.backref('events', lazy=True, order_by='EmailEvent.created_at.desc()'))
 
 
+class EmailTemplate(db.Model):
+    __tablename__ = 'email_templates'
+    id = db.Column(db.String(36), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    name = db.Column(db.String(255), nullable=False)
+    subject = db.Column(db.String(500), nullable=False)
+    html_content = db.Column(db.Text)
+    text_content = db.Column(db.Text)
+    variables = db.Column(db.Text)  # JSON com lista de variáveis esperadas ["name", "order_id"]
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = db.relationship('User', backref=db.backref('email_templates', lazy=True))
+
+
 # ============================================
 # Auth Decorator
 # ============================================
@@ -648,6 +664,126 @@ def email_details(email_id):
 
 
 # ============================================
+# Template Routes
+# ============================================
+
+def _render_template_content(template: EmailTemplate, variables: dict) -> tuple:
+    """Renderiza um template com variáveis usando Jinja2"""
+    from jinja2 import Template as JinjaTemplate, UndefinedError
+
+    subject = template.subject
+    html_content = template.html_content or ''
+    text_content = template.text_content or ''
+
+    try:
+        subject = JinjaTemplate(subject).render(**variables)
+        html_content = JinjaTemplate(html_content).render(**variables)
+        text_content = JinjaTemplate(text_content).render(**variables)
+    except UndefinedError as e:
+        raise ValueError(f'Variável não definida no template: {e}')
+    except Exception as e:
+        raise ValueError(f'Erro ao renderizar template: {e}')
+
+    return subject, html_content, text_content
+
+
+@app.route('/templates')
+@login_required
+def list_templates():
+    templates = EmailTemplate.query.filter_by(user_id=session['user_id'], is_active=True).all()
+    return render_template('templates.html', templates=templates)
+
+
+@app.route('/templates/create', methods=['GET', 'POST'])
+@login_required
+def create_template():
+    if request.method == 'POST':
+        import json
+        template = EmailTemplate(
+            id=secrets.token_hex(18),
+            user_id=session['user_id'],
+            name=request.form.get('name'),
+            subject=request.form.get('subject'),
+            html_content=request.form.get('html_content'),
+            text_content=request.form.get('text_content'),
+            variables=json.dumps([v.strip() for v in request.form.get('variables', '').split(',') if v.strip()])
+        )
+        db.session.add(template)
+        db.session.commit()
+        flash('Template criado com sucesso!', 'success')
+        return redirect(url_for('list_templates'))
+
+    return render_template('template_form.html', template=None)
+
+
+@app.route('/templates/<template_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_template(template_id):
+    template = EmailTemplate.query.filter_by(id=template_id, user_id=session['user_id']).first_or_404()
+    import json
+
+    if request.method == 'POST':
+        template.name = request.form.get('name')
+        template.subject = request.form.get('subject')
+        template.html_content = request.form.get('html_content')
+        template.text_content = request.form.get('text_content')
+        template.variables = json.dumps([v.strip() for v in request.form.get('variables', '').split(',') if v.strip()])
+        template.is_active = request.form.get('is_active') == 'on'
+        template.updated_at = datetime.utcnow()
+
+        db.session.commit()
+        flash('Template atualizado com sucesso!', 'success')
+        return redirect(url_for('list_templates'))
+
+    variables_list = json.loads(template.variables) if template.variables else []
+    return render_template('template_form.html', template=template, variables_list=variables_list)
+
+
+@app.route('/templates/<template_id>/delete', methods=['POST'])
+@login_required
+def delete_template(template_id):
+    template = EmailTemplate.query.filter_by(id=template_id, user_id=session['user_id']).first()
+    if template:
+        template.is_active = False  # Soft delete
+        db.session.commit()
+        flash('Template removido.', 'success')
+    return redirect(url_for('list_templates'))
+
+
+@app.route('/templates/<template_id>/preview', methods=['POST'])
+@login_required
+def preview_template(template_id):
+    template = EmailTemplate.query.filter_by(id=template_id, user_id=session['user_id']).first_or_404()
+    import json
+
+    # Variáveis de exemplo para preview
+    variables = {}
+    if template.variables:
+        try:
+            var_list = json.loads(template.variables)
+            for var in var_list:
+                variables[var] = f'[Valor de {var}]'
+        except:
+            pass
+
+    # Adicionar variáveis do formulário se fornecidas
+    for key, value in request.form.items():
+        if key.startswith('var_'):
+            variables[key[4:]] = value
+
+    try:
+        subject, html_content, text_content = _render_template_content(template, variables)
+        return jsonify({
+            'success': True,
+            'subject': subject,
+            'html': html_content,
+            'text': text_content
+        })
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+# ============================================
 # API Routes
 # ============================================
 
@@ -784,6 +920,147 @@ def api_send_email():
         db.session.commit()
         return jsonify({'success': False, 'id': email.id, 'status': email.status, 'error': email.failure_reason}), 500
      
+    return jsonify({
+        'success': True,
+        'id': email.id,
+        'status': email.status
+    })
+
+
+@app.route('/api/v1/send-template', methods=['POST'])
+@api_key_required
+def api_send_template():
+    """Envia email usando um template predefinido com variáveis"""
+    data = request.get_json(force=True)
+
+    if not data:
+        return jsonify({'error': 'JSON body required'}), 400
+
+    # Validar campos obrigatórios
+    if 'to' not in data:
+        return jsonify({'error': 'Field "to" is required'}), 400
+    if 'template_id' not in data:
+        return jsonify({'error': 'Field "template_id" is required'}), 400
+
+    template_id = data['template_id']
+    template = EmailTemplate.query.filter_by(
+        id=template_id,
+        user_id=request.api_key.user_id,
+        is_active=True
+    ).first()
+
+    if not template:
+        return jsonify({'error': 'Template not found or inactive'}), 404
+
+    # Variáveis para renderização
+    variables = data.get('variables', {})
+    if not isinstance(variables, dict):
+        return jsonify({'error': 'Field "variables" must be an object'}), 400
+
+    # Renderizar template
+    try:
+        subject, html_content, text_content = _render_template_content(template, variables)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+
+    # Criar email
+    email = Email(
+        id=secrets.token_hex(18),
+        api_key_id=request.api_key.id,
+        to_address=data['to'],
+        cc=','.join(data.get('cc', [])) if isinstance(data.get('cc'), list) else data.get('cc'),
+        bcc=','.join(data.get('bcc', [])) if isinstance(data.get('bcc'), list) else data.get('bcc'),
+        subject=subject,
+        html_content=html_content,
+        text_content=text_content,
+        external_id=data.get('external_id'),
+        status='pending'
+    )
+
+    db.session.add(email)
+    db.session.commit()
+
+    # Selecionar provider (mesma lógica do api_send_email)
+    provider = None
+    if getattr(request.api_key, 'provider_id', None):
+        provider = SmtpProvider.query.filter_by(
+            id=request.api_key.provider_id,
+            user_id=request.api_key.user_id,
+            is_active=True,
+        ).first()
+
+        if not provider:
+            email.status = 'failed'
+            email.failure_reason = f'Provider {request.api_key.provider_id} not found or inactive'
+            db.session.commit()
+            return jsonify({
+                'error': 'Configured provider not available',
+                'provider_id': request.api_key.provider_id
+            }), 400
+    else:
+        provider = _get_active_provider(request.api_key.user_id)
+        if not provider:
+            email.status = 'failed'
+            email.failure_reason = 'No active SMTP provider configured'
+            db.session.commit()
+            return jsonify({'error': 'No active SMTP provider configured'}), 400
+
+    email.provider_id = provider.id
+    email.tracking_token = secrets.token_hex(32)
+    db.session.commit()
+
+    # Enviar email
+    try:
+        requested_from = data.get('from')
+        requested_reply_to = data.get('replyTo') or data.get('reply_to')
+
+        provider_email = _extract_email(provider.username)
+        requested_from_email = _extract_email(requested_from)
+
+        if provider_email and requested_from_email and requested_from_email.lower() != provider_email.lower():
+            from_address = provider.username
+            reply_to = requested_from_email
+        else:
+            from_address = requested_from or provider.username or email.to_address
+            reply_to = _extract_email(requested_reply_to)
+
+        # Processar HTML para tracking
+        final_html = email.html_content
+        if final_html and email.tracking_enabled:
+            final_html = _inject_tracking(final_html, email.tracking_token)
+
+        refused, log = _smtp_send(
+            provider=provider,
+            from_address=from_address,
+            to_address=email.to_address,
+            subject=email.subject,
+            html=final_html,
+            text_content=email.text_content,
+            reply_to=reply_to,
+            cc=email.cc,
+            bcc=email.bcc,
+            attachments=data.get('attachments')
+        )
+
+        if refused:
+            email.status = 'failed'
+            email.failure_reason = f'Recipient refused: {refused}'
+            email.delivery_response = log
+            db.session.commit()
+            return jsonify({'success': False, 'id': email.id, 'status': email.status, 'error': email.failure_reason}), 500
+
+        email.status = 'sent'
+        email.sent_at = datetime.utcnow()
+        email.delivery_status = 'smtp_accepted'
+        email.delivered_at = datetime.utcnow()
+        email.delivery_response = log
+        db.session.commit()
+    except Exception as e:
+        email.status = 'failed'
+        email.failure_reason = str(e)
+        db.session.commit()
+        return jsonify({'success': False, 'id': email.id, 'status': email.status, 'error': email.failure_reason}), 500
+
     return jsonify({
         'success': True,
         'id': email.id,

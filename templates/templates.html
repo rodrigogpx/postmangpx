@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Templates de E-mail - PostmanGPX{% endblock %}
+
+{% block body %}
+<div class="flex">
+    {% include "sidebar.html" %}
+    <main class="flex-1 ml-64 p-8">
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-3xl font-bold">Templates de E-mail</h1>
+                <p class="text-gray-400 mt-1">Crie e gerencie templates reutilizáveis</p>
+            </div>
+            <a href="{{ url_for('create_template') }}" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-semibold transition">
+                <i class="fas fa-plus mr-2"></i>Novo Template
+            </a>
+        </div>
+
+        <!-- Templates List -->
+        <div class="bg-gray-800 rounded-xl overflow-hidden">
+            {% if templates %}
+            <table class="w-full">
+                <thead>
+                    <tr class="text-left text-gray-400 text-sm bg-gray-700/50">
+                        <th class="px-6 py-4">Nome</th>
+                        <th class="px-6 py-4">Assunto</th>
+                        <th class="px-6 py-4">Variáveis</th>
+                        <th class="px-6 py-4">Atualizado</th>
+                        <th class="px-6 py-4">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for template in templates %}
+                    <tr class="border-t border-gray-700">
+                        <td class="px-6 py-4 font-medium">{{ template.name }}</td>
+                        <td class="px-6 py-4 text-gray-400">{{ template.subject }}</td>
+                        <td class="px-6 py-4">
+                            {% if template.variables %}
+                                {% set vars = template.variables|from_json %}
+                                {% for var in vars %}
+                                <span class="px-2 py-1 bg-indigo-900/50 text-indigo-300 rounded text-xs mr-1">{{ var }}</span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-gray-500 text-sm">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-gray-400 text-sm">
+                            {{ template.updated_at.strftime('%d/%m/%Y %H:%M') }}
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="flex items-center gap-3">
+                                <a href="{{ url_for('edit_template', template_id=template.id) }}" class="text-blue-400 hover:text-blue-300">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <form method="POST" action="{{ url_for('delete_template', template_id=template.id) }}"
+                                      onsubmit="return confirm('Tem certeza que deseja excluir este template?')"
+                                      class="inline">
+                                    <button type="submit" class="text-red-400 hover:text-red-300">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="text-center py-12">
+                <i class="fas fa-file-code text-4xl text-gray-600 mb-4"></i>
+                <p class="text-gray-400">Nenhum template configurado.</p>
+                <p class="text-gray-500 text-sm mt-1">Crie templates para enviar emails personalizados.</p>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+</div>
+{% endblock %}
