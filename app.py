@@ -517,7 +517,7 @@ def _inject_tracking(html_content: str, token: str) -> str:
         return html_content
 
     # URL base para tracking (deve ser configurável via env)
-    tracking_base = os.environ.get('TRACKING_BASE_URL', 'http://localhost:3000')
+    tracking_base = os.environ.get('TRACKING_BASE_URL', 'https://postmangpx.cac360.com.br')
 
     # 1. Injetar pixel de abertura (1x1 transparente GIF)
     pixel_url = f"{tracking_base}/track/open/{token}"
