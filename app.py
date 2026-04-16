@@ -509,17 +509,14 @@ def _extract_email(value: str | None):
 
 
 def _inject_tracking(html_content: str, token: str) -> str:
-    """Injeta pixel de tracking e substitui links no HTML"""
-    import re
-    from urllib.parse import quote
-
+    """Injeta pixel de tracking de abertura no HTML"""
     if not html_content:
         return html_content
 
     # URL base para tracking (deve ser configurável via env)
     tracking_base = os.environ.get('TRACKING_BASE_URL', 'https://postmangpx.cac360.com.br')
 
-    # 1. Injetar pixel de abertura (1x1 transparente GIF)
+    # Injetar pixel de abertura (1x1 transparente GIF)
     pixel_url = f"{tracking_base}/track/open/{token}"
     pixel_img = f'<img src="{pixel_url}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;" />'
 
@@ -530,27 +527,6 @@ def _inject_tracking(html_content: str, token: str) -> str:
         html_content = html_content.replace('</html>', f'{pixel_img}</html>')
     else:
         html_content = html_content + pixel_img
-
-    # 2. Substituir links por proxy de tracking
-    # Padrão: href="URL" ou href='URL'
-    def replace_link(match):
-        full_match = match.group(0)
-        url = match.group(1) or match.group(2)  # Captura de aspas duplas ou simples
-
-        # Não substituir links internos (tel:, mailto:, #, javascript:)
-        if url.startswith(('tel:', 'mailto:', '#', 'javascript:', 'data:')):
-            return full_match
-
-        # Criar URL de tracking
-        tracking_url = f"{tracking_base}/track/click/{token}?url={quote(url, safe='')}"  # noqa: E501
-        return full_match.replace(url, tracking_url)
-
-    # Regex para capturar href="URL" ou href='URL'
-    html_content = re.sub(
-        r'href=["\']([^"\']+)["\']',
-        replace_link,
-        html_content
-    )
 
     return html_content
 
@@ -833,17 +809,9 @@ def analytics_dashboard():
         Email.opened_at.isnot(None)
     ).count()
 
-    clicked_emails = Email.query.filter(
-        Email.api_key_id.in_(
-            db.session.query(ApiKey.id).filter_by(user_id=user_id)
-        ),
-        Email.clicked_at.isnot(None)
-    ).count()
-
     # Taxas
     delivery_rate = (delivered_emails / sent_emails * 100) if sent_emails > 0 else 0
     open_rate = (opened_emails / delivered_emails * 100) if delivered_emails > 0 else 0
-    click_rate = (clicked_emails / delivered_emails * 100) if delivered_emails > 0 else 0
     bounce_rate = (failed_emails / total_emails * 100) if total_emails > 0 else 0
 
     # Top templates usados (se houver templates vinculados)
@@ -868,10 +836,8 @@ def analytics_dashboard():
         'delivered': delivered_emails,
         'failed': failed_emails,
         'opened': opened_emails,
-        'clicked': clicked_emails,
         'delivery_rate': round(delivery_rate, 1),
         'open_rate': round(open_rate, 1),
-        'click_rate': round(click_rate, 1),
         'bounce_rate': round(bounce_rate, 1)
     }
 
@@ -926,14 +892,6 @@ def api_analytics():
         Email.created_at >= start_date
     ).count()
 
-    clicked = Email.query.filter(
-        Email.api_key_id.in_(
-            db.session.query(ApiKey.id).filter_by(user_id=user_id)
-        ),
-        Email.clicked_at.isnot(None),
-        Email.created_at >= start_date
-    ).count()
-
     bounced = Email.query.filter(
         Email.api_key_id.in_(
             db.session.query(ApiKey.id).filter_by(user_id=user_id)
@@ -950,11 +908,9 @@ def api_analytics():
             'sent': sent,
             'delivered': delivered,
             'opened': opened,
-            'clicked': clicked,
             'bounced': bounced,
             'delivery_rate': round(delivered / sent * 100, 2) if sent > 0 else 0,
             'open_rate': round(opened / delivered * 100, 2) if delivered > 0 else 0,
-            'click_rate': round(clicked / delivered * 100, 2) if delivered > 0 else 0,
             'bounce_rate': round(bounced / total * 100, 2) if total > 0 else 0
         }
     })
@@ -1346,37 +1302,6 @@ def track_open(token):
     # Retornar pixel 1x1 transparente GIF
     pixel = base64.b64decode('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7')
     return pixel, 200, {'Content-Type': 'image/gif', 'Cache-Control': 'no-cache, no-store, must-revalidate'}
-
-
-@app.route('/track/click/<token>')
-def track_click(token):
-    """Redireciona e registra clique em link"""
-    url = request.args.get('url')
-
-    email = Email.query.filter_by(tracking_token=token).first()
-
-    if email and email.tracking_enabled:
-        # Atualizar estatísticas
-        email.click_count += 1
-        if not email.clicked_at:
-            email.clicked_at = datetime.utcnow()
-
-        # Registrar evento
-        event = EmailEvent(
-            id=secrets.token_hex(18),
-            email_id=email.id,
-            event_type='clicked',
-            link_url=url,
-            ip_address=request.remote_addr,
-            user_agent=request.user_agent.string if request.user_agent else None
-        )
-        db.session.add(event)
-        db.session.commit()
-
-    # Redirecionar para URL original ou página de erro
-    if url:
-        return redirect(url)
-    return 'Link não encontrado', 404
 
 
 # ============================================

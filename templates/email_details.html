@@ -101,12 +101,12 @@
             </div>
 
             <!-- Tracking Statistics -->
-            {% if email.tracking_enabled and (email.opened_at or email.clicked_at or email.status == 'sent' or email.status == 'delivered') %}
+            {% if email.tracking_enabled and (email.opened_at or email.status == 'sent' or email.status == 'delivered') %}
             <div class="bg-gray-800 rounded-xl p-6">
                 <h2 class="text-xl font-semibold mb-4">
                     <i class="fas fa-chart-line mr-2"></i>Estatísticas de Engajamento
                 </h2>
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div class="bg-gray-700/50 rounded-lg p-4 text-center">
                         <div class="text-3xl font-bold text-blue-400 mb-1">
                             {{ email.open_count or 0 }}
@@ -117,19 +117,6 @@
                         {% if email.opened_at %}
                         <div class="text-xs text-gray-500 mt-2">
                             Primeira: {{ email.opened_at.strftime('%d/%m/%Y %H:%M') }}
-                        </div>
-                        {% endif %}
-                    </div>
-                    <div class="bg-gray-700/50 rounded-lg p-4 text-center">
-                        <div class="text-3xl font-bold text-green-400 mb-1">
-                            {{ email.click_count or 0 }}
-                        </div>
-                        <div class="text-gray-400 text-sm">
-                            <i class="fas fa-mouse-pointer mr-1"></i>Cliques
-                        </div>
-                        {% if email.clicked_at %}
-                        <div class="text-xs text-gray-500 mt-2">
-                            Primeiro: {{ email.clicked_at.strftime('%d/%m/%Y %H:%M') }}
                         </div>
                         {% endif %}
                     </div>
@@ -175,8 +162,6 @@
                                     <td class="px-4 py-2">
                                         {% if event.event_type == 'opened' %}
                                             <span class="text-blue-400"><i class="fas fa-eye mr-1"></i>Aberto</span>
-                                        {% elif event.event_type == 'clicked' %}
-                                            <span class="text-green-400"><i class="fas fa-mouse-pointer mr-1"></i>Clique</span>
                                         {% elif event.event_type == 'delivered' %}
                                             <span class="text-green-400"><i class="fas fa-check-circle mr-1"></i>Entregue</span>
                                         {% elif event.event_type == 'bounced' %}
@@ -190,9 +175,7 @@
                                     <td class="px-4 py-2 text-gray-400">{{ event.provider or 'Sistema' }}</td>
                                     <td class="px-4 py-2 text-gray-400">{{ event.created_at.strftime('%d/%m/%Y %H:%M:%S') }}</td>
                                     <td class="px-4 py-2 text-gray-400">
-                                        {% if event.link_url %}
-                                            <span class="text-xs truncate max-w-xs block" title="{{ event.link_url }}">{{ event.link_url[:50] }}...</span>
-                                        {% elif event.ip_address %}
+                                        {% if event.ip_address %}
                                             <span class="text-xs">IP: {{ event.ip_address }}</span>
                                         {% else %}
                                             -

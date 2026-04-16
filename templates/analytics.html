@@ -12,7 +12,7 @@
         </div>
 
         <!-- Stats Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             <!-- Total Emails -->
             <div class="bg-gray-800 rounded-xl p-6">
                 <div class="flex items-center justify-between">
@@ -52,20 +52,6 @@
                     </div>
                 </div>
                 <p class="text-gray-500 text-sm mt-2">{{ stats.opened }} abertos</p>
-            </div>
-
-            <!-- Clicked -->
-            <div class="bg-gray-800 rounded-xl p-6">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-gray-400 text-sm">Taxa de Clique</p>
-                        <p class="text-3xl font-bold mt-1 text-purple-400">{{ stats.click_rate }}%</p>
-                    </div>
-                    <div class="w-12 h-12 bg-purple-900/50 rounded-lg flex items-center justify-center">
-                        <i class="fas fa-mouse-pointer text-purple-400 text-xl"></i>
-                    </div>
-                </div>
-                <p class="text-gray-500 text-sm mt-2">{{ stats.clicked }} cliques</p>
             </div>
         </div>
 
@@ -165,9 +151,6 @@
                         <div class="text-right">
                             {% if email.opened_at %}
                             <span class="text-blue-400 text-xs block"><i class="fas fa-eye mr-1"></i>Aberto</span>
-                            {% endif %}
-                            {% if email.clicked_at %}
-                            <span class="text-purple-400 text-xs block"><i class="fas fa-mouse-pointer mr-1"></i>Clique</span>
                             {% endif %}
                         </div>
                     </a>
